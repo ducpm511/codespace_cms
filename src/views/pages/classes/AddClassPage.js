@@ -1,6 +1,6 @@
 // src/views/pages/classes/AddClassPage.js
 import React from 'react'
-import AddClassForm from '../../components/classes/AddClassForm'
+import AddClassForm from '../../../components/classes/AddClassForm'
 import { CCard, CCardBody, CCardHeader, CCol, CRow } from '@coreui/react'
 import { toast } from 'react-toastify' // Import toast
 

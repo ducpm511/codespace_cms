@@ -66,8 +66,8 @@ const AddEditStudentForm = ({ mode, initialData, onFormSuccess }) => {
       try {
         const classesResponse = await getAllClasses() // Lấy phản hồi đầy đủ
         // Đảm bảo truy cập đúng thuộc tính 'data'
-        setAllClasses(classesResponse.data || [])
-        console.log('[AddEditStudentForm] All classes fetched:', classesResponse.data) // DEBUG LOG
+        setAllClasses(classesResponse || [])
+        console.log('[AddEditStudentForm] All classes fetched:', classesResponse) // DEBUG LOG
 
         const parentsResponse = await getAllParents() // Lấy phản hồi đầy đủ
         console.log('[AddEditStudentForm] Parents response from API:', parentsResponse) // DEBUG LOG: Log phản hồi thô từ API

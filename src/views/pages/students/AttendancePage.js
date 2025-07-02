@@ -115,8 +115,7 @@ const AttendancePage = () => {
                   }}
                   facingMode="environment"
                   delay={300} // Độ trễ giữa các lần quét
-                  width={400}
-                  height={300}
+                  style={{ width: '100%', height: 'auto', maxWidth: 400 }}
                 />
               ) : (
                 <div

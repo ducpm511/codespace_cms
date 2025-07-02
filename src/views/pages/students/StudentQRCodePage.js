@@ -68,6 +68,7 @@ const StudentQRCodePage = () => {
   }
 
   const handleSelectStudent = (student) => {
+    console.log('Selected student:', student) // DEBUG LOG
     setSelectedStudent(student)
     setSearchStudentTerm(`${student.fullName} (ID: ${student.id})`) // Hiển thị thông tin đã chọn
     setIsStudentDropdownOpen(false)
@@ -158,7 +159,21 @@ const StudentQRCodePage = () => {
                     Ngày sinh: {new Date(selectedStudent.dateOfBirth).toLocaleDateString('vi-VN')}
                   </p>
                   <p>Giới tính: {selectedStudent.gender}</p>
-                  <p>Lớp: {selectedStudent.classCode || 'Chưa gán'}</p>
+                  <div>
+                    Lớp:
+                    {Array.isArray(selectedStudent.classes) &&
+                    selectedStudent.classes.length > 0 ? (
+                      <ul style={{ listStyle: 'inside', paddingLeft: 0 }}>
+                        {selectedStudent.classes.map((cls, idx) => (
+                          <li key={cls.id || idx}>
+                            {cls.name || cls.className || cls.classCode || 'Tên lớp không xác định'}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <span> Không có dữ liệu lớp học.</span>
+                    )}
+                  </div>
                   <p>Phụ huynh: {selectedStudent.parent?.fullName || 'N/A'}</p>
 
                   <div className="mt-4">
