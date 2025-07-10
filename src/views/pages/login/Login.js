@@ -42,6 +42,8 @@ const Login = () => {
 
       if (response.ok) {
         const data = await response.json()
+        localStorage.setItem('accessToken', data.accessToken)
+        localStorage.setItem('refreshToken', data.refreshToken)
         navigate('/dashboard') // Thay đổi '/dashboard' thành route bạn muốn chuyển hướng đến
       } else {
         const errorData = await response.json()
