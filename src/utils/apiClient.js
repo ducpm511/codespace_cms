@@ -1,5 +1,6 @@
 // src/utils/apiClient.js
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000' // Đảm bảo có fallback URL
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || 'https://codespace-backend-l0xg.onrender.com' // Đảm bảo có fallback URL
 
 // Hàm này lấy token từ localStorage.
 const getToken = () => {
