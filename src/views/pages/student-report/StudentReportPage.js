@@ -141,7 +141,7 @@ const StudentReportsPage = () => {
                     <CTableDataCell>
                       {report.accessToken ? (
                         <a
-                          href={`http://localhost:3001/student-reports/${report.accessToken}`}
+                          href={`https://codespace.edu.vn/student-reports/${report.accessToken}`}
                           target="_blank"
                           rel="noreferrer"
                         >
