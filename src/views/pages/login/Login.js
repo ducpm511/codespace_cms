@@ -31,7 +31,7 @@ const Login = () => {
 
   const handleLogin = async () => {
     try {
-      const response = await fetch('http://localhost:3000/auth/login', {
+      const response = await fetch('https://codespace-backend-l0xg.onrender.com/auth/login', {
         // Thay đổi URL nếu cần
         method: 'POST',
         headers: {
@@ -111,8 +111,7 @@ const Login = () => {
                   <div>
                     <h2>Sign up</h2>
                     <p>
-                      Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod
-                      tempor incididunt ut labore et dolore magna aliqua.
+                      Chưa biết viết gì ở đây, xóa cái này đi thì xấu, nên viết tạm mấy cái này cho nó đỡ trống trải
                     </p>
                     {/* Bạn có thể giữ lại link đăng ký nếu muốn */}
                   </div>
