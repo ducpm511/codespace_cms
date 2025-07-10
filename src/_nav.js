@@ -7,6 +7,8 @@ import {
   cilUser,
   cilQrCode,
   cilCalendarCheck,
+  cilClipboard,
+  cilMoodGood,
 } from '@coreui/icons'
 import { CNavItem, CNavTitle } from '@coreui/react'
 
@@ -39,7 +41,7 @@ const _nav = [
     component: CNavItem,
     name: 'Quản lý phụ huynh',
     to: '/parents',
-    icon: <CIcon icon={cilPeople} customClassName="nav-icon" />,
+    icon: <CIcon icon={cilMoodGood} customClassName="nav-icon" />,
   },
   {
     component: CNavTitle,
@@ -62,6 +64,12 @@ const _nav = [
     name: 'Điểm danh',
     to: '/students/attendance',
     icon: <CIcon icon={cilCalendarCheck} customClassName="nav-icon" />,
+  },
+  {
+    component: CNavItem,
+    name: 'Quản lý báo cáo học sinh',
+    to: '/student-reports',
+    icon: <CIcon icon={cilClipboard} customClassName="nav-icon" />,
   },
   {
     component: CNavTitle,

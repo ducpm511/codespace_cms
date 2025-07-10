@@ -57,11 +57,14 @@ const refreshAuthTokens = async () => {
  */
 const apiClient = async (endpoint, options = {}) => {
   const token = getToken()
-  const defaultHeaders = {
-    'Content-Type': 'application/json',
-    Accept: 'application/json',
-  }
+  const isFormData = options.body instanceof FormData
 
+  const defaultHeaders = isFormData
+    ? {}
+    : {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      }
   if (token) {
     defaultHeaders['Authorization'] = `Bearer ${token}`
   }
