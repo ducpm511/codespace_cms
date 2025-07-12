@@ -14,10 +14,17 @@ import {
   CSpinner,
   CFormInput,
   CFormSelect,
+  CModal,
+  CModalHeader,
+  CModalTitle,
+  CModalBody,
+  CModalFooter,
 } from '@coreui/react'
 import { getAllClasses } from '../../../services/class.service'
 import { getStudentReports, deleteStudentReport } from '../../../services/student-report.service'
 import UploadReportModal from '../../../components/students/UploadReportModal'
+import { QRCodeCanvas } from 'qrcode.react'
+import { useRef } from 'react'
 
 const StudentReportsPage = () => {
   const [reports, setReports] = useState([])
@@ -27,6 +34,9 @@ const StudentReportsPage = () => {
   const [classes, setClasses] = useState([])
   const [showModal, setShowModal] = useState(false)
   const [editData, setEditData] = useState(null)
+  const [qrData, setQrData] = useState(null)
+
+  const qrRef = useRef(null)
 
   const fetchReports = async () => {
     setLoading(true)
@@ -64,6 +74,18 @@ const StudentReportsPage = () => {
     } catch (error) {
       console.error('Lỗi khi xoá báo cáo:', error)
     }
+  }
+
+  const downloadQR = () => {
+    const canvas = qrRef.current?.querySelector('canvas')
+    if (!canvas) return alert('Không tìm thấy mã QR')
+
+    const pngUrl = canvas.toDataURL('image/png')
+    const downloadLink = document.createElement('a')
+    const studentName = qrData?.student?.fullName?.replace(/\s+/g, '_') || 'student'
+    downloadLink.href = pngUrl
+    downloadLink.download = `${studentName}_qr-code.png`
+    downloadLink.click()
   }
 
   return (
@@ -151,6 +173,20 @@ const StudentReportsPage = () => {
                         Sửa
                       </CButton>
 
+                      <CButton
+                        color="info"
+                        size="sm"
+                        className="me-2"
+                        onClick={() =>
+                          report.accessToken &&
+                          setQrData(
+                            `https://codespace.edu.vn/student-reports/${report.accessToken}`,
+                          )
+                        }
+                      >
+                        QR
+                      </CButton>
+
                       <CButton color="danger" size="sm" onClick={() => handleDelete(report.id)}>
                         Xoá
                       </CButton>
@@ -172,6 +208,31 @@ const StudentReportsPage = () => {
         onSuccess={fetchReports}
         initialData={editData}
       />
+      <CModal visible={!!qrData} onClose={() => setQrData(null)}>
+        <CModalHeader>
+          <CModalTitle>Mã QR chia sẻ</CModalTitle>
+        </CModalHeader>
+        <CModalBody className="text-center" ref={qrRef}>
+          {qrData && (
+            <>
+              <QRCodeCanvas value={qrData} size={256} />
+              <p className="mt-3">
+                <a href={qrData} target="_blank" rel="noreferrer">
+                  {qrData}
+                </a>
+              </p>
+            </>
+          )}
+        </CModalBody>
+        <CModalFooter>
+          <CButton color="secondary" onClick={() => setQrData(null)}>
+            Đóng
+          </CButton>
+          <CButton color="primary" onClick={downloadQR}>
+            Tải mã QR
+          </CButton>
+        </CModalFooter>
+      </CModal>
     </>
   )
 }
