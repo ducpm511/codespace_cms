@@ -58,3 +58,22 @@ export const createStudentReport = async ({
     body: JSON.stringify(payload),
   })
 }
+
+// Cập nhật report
+export const updateStudentReport = async (
+  id,
+  { studentId, classId, pdfFiles = [], youtubeLinks = [], scratchProjects = [] },
+) => {
+  const payload = {
+    studentId,
+    classId,
+    pdfFiles,
+    youtubeLinks,
+    scratchProjects,
+  }
+
+  return await apiClient(`/student-reports/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
+}

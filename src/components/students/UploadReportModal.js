@@ -1,3 +1,4 @@
+// src/components/students/UploadReportModal.js
 import React, { useState, useEffect } from 'react'
 import {
   CModal,
@@ -11,11 +12,15 @@ import {
   CFormSelect,
   CSpinner,
 } from '@coreui/react'
-import { uploadPdf, createStudentReport } from '../../services/student-report.service'
+import {
+  uploadPdf,
+  createStudentReport,
+  updateStudentReport,
+} from '../../services/student-report.service'
 import { getAllStudents } from '../../services/student.service'
 import { getAllClasses } from '../../services/class.service'
 
-const UploadReportModal = ({ visible, onClose, onSuccess }) => {
+const UploadReportModal = ({ visible, onClose, onSuccess, initialData = null }) => {
   const [selectedStudentId, setSelectedStudentId] = useState('')
   const [selectedClassId, setSelectedClassId] = useState('')
   const [pdfInputs, setPdfInputs] = useState([])
@@ -28,38 +33,111 @@ const UploadReportModal = ({ visible, onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    const fetchData = async () => {
-      const [studentsData, classesData] = await Promise.all([getAllStudents(), getAllClasses()])
-      setStudents(studentsData)
-      setClasses(classesData)
+    const fetchDataAndInitForm = async () => {
+      try {
+        const [studentsData, classesData] = await Promise.all([getAllStudents(), getAllClasses()])
+        setStudents(studentsData)
+        setClasses(classesData)
+
+        if (initialData) {
+          // Chế độ chỉnh sửa
+          setSelectedStudentId(initialData.student?.id?.toString() || '')
+          setSelectedClassId(initialData.class?.id?.toString() || '')
+
+          console.log('Initial data:', initialData)
+
+          setPdfInputs(
+            (initialData.files || []).map((f, i) => ({
+              fileUrl: f.fileUrl || f,
+              testType: f.testType || initialData.pdfTestTypes?.[i] || 'midterm',
+              score: f.score || initialData.pdfScores?.[i] || '',
+              name: f.fileName || `File ${i + 1}`,
+            })),
+          )
+
+          setYoutubeLinks(
+            (initialData.links || [])
+              .filter((link) => link.type === 'YOUTUBE')
+              .map((link) => link.urlOrEmbedCode),
+          )
+
+          setScratchProjects(
+            (initialData.links || [])
+              .filter((link) => link.type === 'SCRATCH_EMBED')
+              .map((project) => ({
+                embedCode: project.urlOrEmbedCode,
+                projectName: project.projectName || '',
+                description: project.description || '',
+              })),
+          )
+        } else {
+          // Chế độ tạo mới
+          setSelectedStudentId('')
+          setSelectedClassId('')
+          setPdfInputs([])
+          setYoutubeLinks([''])
+          setScratchProjects([{ embedCode: '', projectName: '', description: '' }])
+        }
+      } catch (err) {
+        console.error('Lỗi khi tải dữ liệu hoặc khởi tạo form:', err)
+      }
     }
-    if (visible) fetchData()
-  }, [visible])
+
+    if (visible) {
+      fetchDataAndInitForm()
+    }
+  }, [visible, initialData])
 
   const handleUpload = async () => {
-    if (!selectedStudentId || !selectedClassId) return alert('Hãy chọn học sinh và lớp học')
+    if (!selectedStudentId || !selectedClassId) {
+      alert('Hãy chọn học sinh và lớp học')
+      return
+    }
 
     setLoading(true)
+
     try {
       const pdfFiles = []
+
       for (const pdfInput of pdfInputs) {
-        const { file, testType, score } = pdfInput
-        const { secure_url } = await uploadPdf(file)
-        pdfFiles.push({ fileUrl: secure_url, testType, score: parseFloat(score) })
+        const { file, fileUrl, testType, score } = pdfInput
+
+        let finalUrl = fileUrl
+
+        // Nếu không có fileUrl (tức là file mới), thì upload
+        if (!fileUrl && file) {
+          const { secure_url } = await uploadPdf(file)
+          finalUrl = secure_url
+        }
+
+        if (!finalUrl) continue
+
+        pdfFiles.push({
+          id: pdfInput.id, // file cũ sẽ có id
+          fileUrl: finalUrl,
+          testType,
+          score: parseFloat(score),
+        })
       }
 
       const payload = {
         studentId: parseInt(selectedStudentId),
         classId: parseInt(selectedClassId),
         pdfFiles,
-        youtubeLinks: youtubeLinks.filter((l) => l),
-        scratchProjects: scratchProjects.filter((p) => p.embedCode),
+        youtubeLinks: youtubeLinks.filter((link) => !!link),
+        scratchProjects: scratchProjects.filter((proj) => proj.embedCode?.trim() !== ''),
       }
-      await createStudentReport(payload)
+
+      if (initialData?.id) {
+        await updateStudentReport(initialData.id, payload)
+      } else {
+        await createStudentReport(payload)
+      }
+
       onSuccess()
       onClose()
     } catch (err) {
-      alert('Lỗi khi tạo báo cáo')
+      console.error('Lỗi khi upload:', err)
     } finally {
       setLoading(false)
     }
@@ -67,8 +145,17 @@ const UploadReportModal = ({ visible, onClose, onSuccess }) => {
 
   const handlePdfChange = (e) => {
     const files = Array.from(e.target.files)
-    const inputs = files.map((file) => ({ file, testType: 'midterm', score: '' }))
-    setPdfInputs(inputs)
+
+    const newInputs = files.map((file) => ({
+      file,
+      fileUrl: null, // File mới nên chưa có URL
+      testType: 'midterm',
+      score: '',
+      name: file.name,
+    }))
+
+    // Giữ lại file cũ
+    setPdfInputs((prev) => [...prev, ...newInputs])
   }
 
   const updatePdfInput = (index, field, value) => {
@@ -143,7 +230,7 @@ const UploadReportModal = ({ visible, onClose, onSuccess }) => {
           {pdfInputs.map((pdf, index) => (
             <div key={index} className="mb-2 border rounded p-2">
               <div>
-                <strong>{pdf.file.name}</strong>
+                <strong>{pdf.name}</strong>
               </div>
               <CFormSelect
                 className="mb-2"
@@ -223,7 +310,16 @@ const UploadReportModal = ({ visible, onClose, onSuccess }) => {
           Đóng
         </CButton>
         <CButton color="primary" onClick={handleUpload} disabled={loading}>
-          {loading ? <CSpinner size="sm" /> : 'Tạo báo cáo'}
+          {loading ? (
+            <>
+              <CSpinner size="sm" className="me-2" />
+              Đang lưu...
+            </>
+          ) : initialData ? (
+            'Lưu thay đổi'
+          ) : (
+            'Tạo báo cáo'
+          )}
         </CButton>
       </CModalFooter>
     </CModal>

@@ -1,3 +1,4 @@
+// src/views/pages/student-report/StudentReportPage.js
 import React, { useEffect, useState } from 'react'
 import {
   CCard,
@@ -25,6 +26,7 @@ const StudentReportsPage = () => {
   const [selectedClassId, setSelectedClassId] = useState('')
   const [classes, setClasses] = useState([])
   const [showModal, setShowModal] = useState(false)
+  const [editData, setEditData] = useState(null)
 
   const fetchReports = async () => {
     setLoading(true)
@@ -103,8 +105,6 @@ const StudentReportsPage = () => {
                   <CTableHeaderCell>Học sinh</CTableHeaderCell>
                   <CTableHeaderCell>Lớp</CTableHeaderCell>
                   <CTableHeaderCell>File PDF</CTableHeaderCell>
-                  <CTableHeaderCell>Link YouTube</CTableHeaderCell>
-                  <CTableHeaderCell>Mã nhúng Scratch</CTableHeaderCell>
                   <CTableHeaderCell>Link chia sẻ</CTableHeaderCell>
                   <CTableHeaderCell>Thao tác</CTableHeaderCell>
                 </CTableRow>
@@ -116,28 +116,15 @@ const StudentReportsPage = () => {
                     <CTableDataCell>{report.student?.fullName}</CTableDataCell>
                     <CTableDataCell>{report.class?.className}</CTableDataCell>
                     <CTableDataCell>
-                      {report.pdfUrls?.map((url, idx) => (
+                      {report.files?.map((file, idx) => (
                         <div key={idx}>
-                          <a href={url} target="_blank" rel="noreferrer">
+                          <a href={file.fileUrl} target="_blank" rel="noreferrer">
                             PDF {idx + 1}
                           </a>
                         </div>
                       ))}
                     </CTableDataCell>
-                    <CTableDataCell>
-                      {report.youtubeLinks?.map((url, idx) => (
-                        <div key={idx}>
-                          <a href={url} target="_blank" rel="noreferrer">
-                            YouTube {idx + 1}
-                          </a>
-                        </div>
-                      ))}
-                    </CTableDataCell>
-                    <CTableDataCell>
-                      {report.scratchEmbeds?.map((embed, idx) => (
-                        <div key={idx}>{embed}</div>
-                      ))}
-                    </CTableDataCell>
+
                     <CTableDataCell>
                       {report.accessToken ? (
                         <a
@@ -152,6 +139,18 @@ const StudentReportsPage = () => {
                       )}
                     </CTableDataCell>
                     <CTableDataCell>
+                      <CButton
+                        color="warning"
+                        size="sm"
+                        className="me-2"
+                        onClick={() => {
+                          setEditData(report)
+                          setShowModal(true)
+                        }}
+                      >
+                        Sửa
+                      </CButton>
+
                       <CButton color="danger" size="sm" onClick={() => handleDelete(report.id)}>
                         Xoá
                       </CButton>
@@ -166,8 +165,12 @@ const StudentReportsPage = () => {
 
       <UploadReportModal
         visible={showModal}
-        onClose={() => setShowModal(false)}
+        onClose={() => {
+          setShowModal(false)
+          setEditData(null)
+        }}
         onSuccess={fetchReports}
+        initialData={editData}
       />
     </>
   )
