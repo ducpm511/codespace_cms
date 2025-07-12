@@ -239,6 +239,7 @@ const UploadReportModal = ({ visible, onClose, onSuccess, initialData = null }) 
               >
                 <option value="midterm">Giữa kỳ</option>
                 <option value="final">Cuối kỳ</option>
+                <option value="certificate">Chứng chỉ (không cần nhập số điểm)</option>
               </CFormSelect>
               <CFormInput
                 type="number"

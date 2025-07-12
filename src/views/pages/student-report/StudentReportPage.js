@@ -88,6 +88,9 @@ const StudentReportsPage = () => {
     downloadLink.click()
   }
 
+  // Sắp xếp danh sách báo cáo theo id tăng dần
+  const sortedReports = [...reports].sort((a, b) => a.id - b.id)
+
   return (
     <>
       <CCard>
@@ -132,7 +135,7 @@ const StudentReportsPage = () => {
                 </CTableRow>
               </CTableHead>
               <CTableBody>
-                {reports.map((report) => (
+                {sortedReports.map((report) => (
                   <CTableRow key={report.id}>
                     <CTableDataCell>{report.id}</CTableDataCell>
                     <CTableDataCell>{report.student?.fullName}</CTableDataCell>
