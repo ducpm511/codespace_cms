@@ -10,10 +10,11 @@ const QRCodePage = React.lazy(() => import('./views/pages/students/StudentQRCode
 const AttendancePage = React.lazy(() => import('./views/pages/students/AttendancePage'))
 const UsersPage = React.lazy(() => import('./views/pages/users/UsersPage'))
 const StudentReportPage = React.lazy(() => import('./views/pages/student-report/StudentReportPage'))
+const ClassSessionPage = React.lazy(() => import('./views/pages/classes/ClassSessionPage'))
 
 const routes = [
   { path: '/', exact: true, name: 'Home' },
-  { path: '/classes', name: 'Add Class', element: ClassesPage },
+  { path: '/classes', name: 'Classes', element: ClassesPage },
   { path: '/parents', name: 'Parents', element: ParentsPage },
   { path: '/students', name: 'Students', element: StudentsPage },
   { path: '/students/qr-code', name: 'QR Code', element: QRCodePage },
@@ -21,6 +22,7 @@ const routes = [
   { path: '/dashboard', name: 'Dashboard', element: Dashboard },
   { path: '/users', name: 'Users', element: UsersPage },
   { path: '/student-reports', name: 'Student Reports', element: StudentReportPage },
+  { path: '/classes/:classId/sessions', name: 'Class Sessions', element: ClassSessionPage },
 ]
 
 export default routes

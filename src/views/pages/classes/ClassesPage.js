@@ -1,3 +1,4 @@
+//src/views/pages/classes/ClassesPage.js
 import React, { useState, useEffect, useCallback } from 'react'
 import {
   CButton,
@@ -25,6 +26,8 @@ import DatePicker from 'react-datepicker' // Import DatePicker
 import 'react-datepicker/dist/react-datepicker.css'
 import { toast } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
+
+import { useNavigate } from 'react-router-dom'
 
 import {
   getAllClasses,
@@ -81,6 +84,7 @@ const ClassesPage = () => {
   const [page, setPage] = useState(1)
   const classesPerPage = 10
   const [totalItems, setTotalItems] = useState(0)
+  const navigate = useNavigate()
 
   // Danh sách các ngày trong tuần để hiển thị checkbox trong modal edit
   const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
@@ -316,6 +320,14 @@ const ClassesPage = () => {
                           </CTableDataCell>
                           <CTableDataCell>{classItem.scheduleTime || 'N/A'}</CTableDataCell>
                           <CTableDataCell>
+                            <CButton
+                              color="success"
+                              size="sm"
+                              className="me-2"
+                              onClick={() => navigate(`/classes/${classItem.id}/sessions`)}
+                            >
+                              Điểm danh
+                            </CButton>
                             <CButton
                               color="info"
                               size="sm"
