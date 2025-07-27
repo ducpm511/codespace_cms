@@ -113,7 +113,7 @@ const AttendancePage = () => {
                     }
                     // if (err) { handleScanError(err); } // Loại bỏ gọi handleScanError
                   }}
-                  facingMode="environment"
+                  facingMode="user"
                   delay={300} // Độ trễ giữa các lần quét
                   style={{ width: '100%', height: 'auto', maxWidth: 400 }}
                 />
