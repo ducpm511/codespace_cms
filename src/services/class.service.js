@@ -57,3 +57,15 @@ export const deleteClass = async (id) => {
     throw error
   }
 }
+
+export const getScheduleFromSessions = async (id) => {
+  try {
+    const data = await apiClient(`/class-sessions/schedule/${id}`, {
+      method: 'GET',
+    })
+    return data
+  } catch (error) {
+    console.error('Error in getScheduleFromSessions:', error)
+    throw error
+  }
+}

@@ -66,7 +66,7 @@ const ClassesPage = () => {
   const [classes, setClasses] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchCode, setSearchCode] = useState('')
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [isAddEditModalOpen, setIsAddEditModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   /** @type {Class | null} */
@@ -135,7 +135,7 @@ const ClassesPage = () => {
   // Modified handleClassAdded to accept newClass from AddClassForm
   const handleClassAdded = (newClass) => {
     console.log('[ClassesPage] handleClassAdded called with newClass:', newClass)
-    setIsAddModalOpen(false) // Đóng modal
+    setIsAddEditModalOpen(false) // Đóng modal
     toast.success('Lớp học đã được thêm thành công!')
 
     // Optimistically add the new class if it belongs to the current page and there's space
@@ -185,7 +185,7 @@ const ClassesPage = () => {
     setEditTotalSessions(classItem.totalSessions ? classItem.totalSessions.toString() : '')
     setEditScheduleDays(classItem.scheduleDays || [])
     setEditScheduleTime(classItem.scheduleTime || '')
-    setIsEditModalOpen(true)
+    setIsAddEditModalOpen(true)
   }
 
   const handleUpdateClass = async () => {
@@ -205,7 +205,7 @@ const ClassesPage = () => {
       }
       console.log('[ClassesPage] Attempting to update class with data:', updateDto)
       await updateClass(selectedClass.id, updateDto)
-      setIsEditModalOpen(false)
+      setIsAddEditModalOpen(false)
       toast.success('Cập nhật lớp học thành công!')
       fetchClasses(page, searchCode) // Refresh data
     } catch (error) {
@@ -253,7 +253,7 @@ const ClassesPage = () => {
                 onChange={handleSearch}
                 className="w-25"
               />
-              <CButton color="primary" onClick={() => setIsAddModalOpen(true)}>
+              <CButton color="primary" onClick={() => setIsAddEditModalOpen(true)}>
                 <CIcon icon={cilPlus} className="me-2" />
                 Thêm lớp học
               </CButton>
@@ -383,132 +383,19 @@ const ClassesPage = () => {
 
       {/* Modal Thêm Lớp Học */}
       <CModal
-        visible={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
+        visible={isAddEditModalOpen}
+        onClose={() => {
+          setIsAddEditModalOpen(false)
+          setSelectedClass(null) // Reset selected class when closing modal
+        }}
         scrollable
         size="lg"
       >
-        <CModalHeader>
-          <CModalTitle>Thêm lớp học mới</CModalTitle>
-        </CModalHeader>
-        <CModalBody>
-          {/* onClassAdded giờ truyền tham số newClass */}
-          <AddClassForm onClassSaved={handleClassAdded} />
-        </CModalBody>
-        <CModalFooter>
-          <CButton color="secondary" onClick={() => setIsAddModalOpen(false)}>
-            Hủy
-          </CButton>
-        </CModalFooter>
-      </CModal>
-
-      {/* Modal Chỉnh Sửa Lớp Học */}
-      <CModal
-        visible={isEditModalOpen}
-        onClose={() => setIsEditModalOpen(false)}
-        scrollable
-        size="lg"
-      >
-        <CModalHeader>
-          <CModalTitle>Chỉnh sửa lớp học</CModalTitle>
-        </CModalHeader>
-        <CModalBody>
-          {selectedClass && (
-            <CForm>
-              <CRow className="mb-3">
-                <CCol md={6}>
-                  <CFormLabel htmlFor="editClassName">Tên lớp</CFormLabel>
-                  <CFormInput
-                    type="text"
-                    id="editClassName"
-                    value={editClassName}
-                    onChange={(e) => setEditClassName(e.target.value)}
-                    required
-                  />
-                </CCol>
-                <CCol md={6}>
-                  <CFormLabel htmlFor="editClassCode">Mã lớp</CFormLabel>
-                  <CFormInput
-                    type="text"
-                    id="editClassCode"
-                    value={editClassCode}
-                    onChange={(e) => setEditClassCode(e.target.value)}
-                    required
-                  />
-                </CCol>
-              </CRow>
-
-              <CRow className="mb-3">
-                <CCol md={6}>
-                  <CFormLabel htmlFor="editAcademicYear">Năm học</CFormLabel>
-                  <CFormInput
-                    type="text"
-                    id="editAcademicYear"
-                    value={editAcademicYear}
-                    onChange={(e) => setEditAcademicYear(e.target.value)}
-                  />
-                </CCol>
-                <CCol md={6}>
-                  <CFormLabel htmlFor="editStartDate">Ngày bắt đầu</CFormLabel>
-                  <DatePicker
-                    id="editStartDate"
-                    selected={editStartDate}
-                    onChange={(date) => setEditStartDate(date)}
-                    dateFormat="dd/MM/yyyy"
-                    className="form-control"
-                    placeholderText="Chọn ngày bắt đầu"
-                  />
-                </CCol>
-              </CRow>
-
-              <CRow className="mb-3">
-                <CCol md={6}>
-                  <CFormLabel htmlFor="editTotalSessions">Tổng số buổi học</CFormLabel>
-                  <CFormInput
-                    type="number"
-                    id="editTotalSessions"
-                    value={editTotalSessions}
-                    onChange={(e) => setEditTotalSessions(e.target.value)}
-                    min="1"
-                  />
-                </CCol>
-                <CCol md={6}>
-                  <CFormLabel htmlFor="editScheduleTime">Giờ học</CFormLabel>
-                  <CFormInput
-                    type="time"
-                    id="editScheduleTime"
-                    value={editScheduleTime}
-                    onChange={(e) => setEditScheduleTime(e.target.value)}
-                  />
-                </CCol>
-              </CRow>
-
-              <div className="mb-3">
-                <CFormLabel>Các ngày trong tuần</CFormLabel>
-                <CRow>
-                  {daysOfWeek.map((day) => (
-                    <CCol xs={6} sm={4} md={3} lg={2} key={day}>
-                      <CFormCheck
-                        id={`edit-day-${day}`}
-                        label={day}
-                        checked={editScheduleDays.includes(day)}
-                        onChange={() => handleEditDayChange(day)}
-                      />
-                    </CCol>
-                  ))}
-                </CRow>
-              </div>
-            </CForm>
-          )}
-        </CModalBody>
-        <CModalFooter>
-          <CButton color="secondary" onClick={() => setIsEditModalOpen(false)}>
-            Hủy
-          </CButton>
-          <CButton color="primary" onClick={handleUpdateClass}>
-            Lưu thay đổi
-          </CButton>
-        </CModalFooter>
+        <AddClassForm
+          mode={selectedClass ? 'edit' : 'add'}
+          initialData={selectedClass || {}}
+          setIsAddEditModalOpen={setIsAddEditModalOpen}
+        />
       </CModal>
 
       {/* Modal Xác Nhận Xóa */}

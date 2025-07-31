@@ -1,19 +1,24 @@
 // src/components/classes/AddClassForm.js
 import React, { useState, useEffect } from 'react'
 import {
+  CModalHeader,
+  CModalTitle,
+  CModalBody,
+  CModalFooter,
   CForm,
   CFormInput,
   CFormLabel,
   CButton,
-  CRow, // Import CRow để sắp xếp layout
-  CCol, // Import CCol để sắp xếp layout
-  CFormFeedback, // Import CFormFeedback để hiển thị lỗi validation
-  CFormCheck, // Để chọn ngày trong tuần
+  CRow,
+  CCol,
+  CFormFeedback,
 } from '@coreui/react'
-import DatePicker from 'react-datepicker' // Import DatePicker
-import 'react-datepicker/dist/react-datepicker.css' // Import CSS cho DatePicker
+import { cilTrash } from '@coreui/icons'
+import CIcon from '@coreui/icons-react'
+import DatePicker from 'react-datepicker'
+import 'react-datepicker/dist/react-datepicker.css'
 import { toast } from 'react-toastify'
-import { createClass, updateClass } from '../../services/class.service' // Import createClass và updateClass
+import { createClass, updateClass, getScheduleFromSessions } from '../../services/class.service'
 
 const daysOfWeekOptions = [
   { label: 'Thứ Hai', value: 'Monday' },
@@ -25,50 +30,73 @@ const daysOfWeekOptions = [
   { label: 'Chủ Nhật', value: 'Sunday' },
 ]
 
-const AddClassForm = ({ mode = 'add', initialData = {}, onClassSaved }) => {
+const AddClassForm = ({ mode = 'add', initialData = {}, setIsAddEditModalOpen }) => {
   const [className, setClassName] = useState('')
   const [classCode, setClassCode] = useState('')
   const [academicYear, setAcademicYear] = useState('')
-  // Scheduling fields
-  const [startDate, setStartDate] = useState(null) // Date object
+  const [startDate, setStartDate] = useState(null)
   const [totalSessions, setTotalSessions] = useState('')
-  const [scheduleDays, setScheduleDays] = useState([]) // Array of strings (e.g., ['Monday', 'Friday'])
-  const [scheduleTime, setScheduleTime] = useState('') // String 'HH:MM'
+  const [scheduleList, setScheduleList] = useState([{ day: '', time: '' }])
 
   const [formValidated, setFormValidated] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false) // This is the key state for disabling inputs
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
-    // console.log('useEffect triggered for mode:', mode, 'initialData:', initialData); // Để gỡ lỗi
-    if (mode === 'edit' && initialData) {
-      setClassName(initialData.className || '')
-      setClassCode(initialData.classCode || '')
-      setAcademicYear(initialData.academicYear || '')
-      // Đảm bảo startDate là Date object nếu tồn tại
-      setStartDate(initialData.startDate ? new Date(initialData.startDate) : null)
-      setTotalSessions(initialData.totalSessions || '')
-      setScheduleDays(initialData.scheduleDays || [])
-      setScheduleTime(initialData.scheduleTime || '')
-    } else {
-      // Reset form for 'add' mode
-      setClassName('')
-      setClassCode('')
-      setAcademicYear('')
-      setStartDate(null)
-      setTotalSessions('')
-      setScheduleDays([])
-      setScheduleTime('')
-    }
-    setFormValidated(false) // Reset validation on data change
-    setIsSubmitting(false) // Ensure inputs are enabled when data changes or mode changes
-  }, [mode, JSON.stringify(initialData)]) // THAY ĐỔI LỚN NHẤT: Sử dụng JSON.stringify để theo dõi nội dung của initialData
+    const fetchSchedule = async () => {
+      if (mode === 'edit' && initialData) {
+        setClassName(initialData.className || '')
+        setClassCode(initialData.classCode || '')
+        setAcademicYear(initialData.academicYear || '')
+        setStartDate(initialData.startDate ? new Date(initialData.startDate) : null)
+        setTotalSessions(initialData.totalSessions || '')
 
-  const handleScheduleDayChange = (dayValue) => {
-    setScheduleDays((prevDays) =>
-      prevDays.includes(dayValue)
-        ? prevDays.filter((day) => day !== dayValue)
-        : [...prevDays, dayValue],
-    )
+        if (initialData.schedule && initialData.schedule.length > 0) {
+          console.log('Lịch học từ dữ liệu ban đầu:', initialData.schedule)
+          setScheduleList(initialData.schedule)
+        } else {
+          console.log(
+            'Không có lịch học trong dữ liệu ban đầu, sử dụng lịch từ các buổi học.',
+            initialData.id,
+          )
+          try {
+            const schedule = await getScheduleFromSessions(initialData.id)
+            setScheduleList(schedule)
+          } catch (err) {
+            console.error('Lỗi khi lấy lịch từ session:', err)
+            setScheduleList([{ day: '', time: '' }])
+          }
+        }
+      } else {
+        setClassName('')
+        setClassCode('')
+        setAcademicYear('')
+        setStartDate(null)
+        setTotalSessions('')
+        setScheduleList([{ day: '', time: '' }])
+      }
+
+      setFormValidated(false)
+      setIsSubmitting(false)
+    }
+
+    fetchSchedule()
+  }, [mode, JSON.stringify(initialData)])
+
+  const handleScheduleChange = (index, field, value) => {
+    const updated = [...scheduleList]
+    updated[index][field] = value
+    console.log(`Cập nhật lịch học tại chỉ mục ${index}:`, updated[index])
+    setScheduleList(updated)
+  }
+
+  const addScheduleItem = () => {
+    setScheduleList([...scheduleList, { day: '', time: '' }])
+  }
+
+  const removeScheduleItem = (index) => {
+    const updated = [...scheduleList]
+    updated.splice(index, 1)
+    setScheduleList(updated)
   }
 
   const validateForm = () => {
@@ -86,10 +114,8 @@ const AddClassForm = ({ mode = 'add', initialData = {}, onClassSaved }) => {
       toast.error('Năm học không được để trống.')
     }
 
-    // Validate scheduling fields if they are intended to be required for generating sessions
-    // If any scheduling field is given, all must be given.
     const isSchedulingInfoProvided =
-      startDate || totalSessions || scheduleDays.length > 0 || scheduleTime
+      startDate || totalSessions || scheduleList.some((s) => s.day || s.time)
 
     if (isSchedulingInfoProvided) {
       if (!startDate) {
@@ -100,13 +126,10 @@ const AddClassForm = ({ mode = 'add', initialData = {}, onClassSaved }) => {
         isValid = false
         toast.error('Tổng số buổi học phải là số nguyên dương.')
       }
-      if (scheduleDays.length === 0) {
+      const hasInvalidSchedule = scheduleList.some((s) => !s.day || !s.time)
+      if (hasInvalidSchedule) {
         isValid = false
-        toast.error('Vui lòng chọn ít nhất một ngày trong tuần.')
-      }
-      if (!scheduleTime) {
-        isValid = false
-        toast.error('Vui lòng nhập thời gian học.')
+        toast.error('Mỗi lịch học cần có đầy đủ ngày và giờ.')
       }
     }
     return isValid
@@ -114,27 +137,26 @@ const AddClassForm = ({ mode = 'add', initialData = {}, onClassSaved }) => {
 
   const handleSubmit = async (event) => {
     event.preventDefault()
-    setFormValidated(true) // Kích hoạt hiển thị lỗi validation của form CoreUI
-
-    if (isSubmitting) return // Ngăn chặn gửi nhiều lần nếu đang trong quá trình submit
-
-    // Kiểm tra validation trước khi đặt isSubmitting = true
+    setFormValidated(true)
+    if (isSubmitting) return
     if (!validateForm()) {
-      setIsSubmitting(false) // Đảm bảo inputs không bị vô hiệu hóa nếu form không hợp lệ
+      setIsSubmitting(false)
       return
     }
-
-    setIsSubmitting(true) // Bắt đầu trạng thái submit
+    setIsSubmitting(true)
 
     const classData = {
       className,
       classCode,
       academicYear,
-      // Convert Date object to ISO string if not null
-      startDate: startDate ? startDate.toISOString().split('T')[0] : null, // Chỉ lấy phần ngày-MM-DD
+      startDate: startDate ? startDate.toISOString().split('T')[0] : null,
       totalSessions: totalSessions ? parseInt(totalSessions, 10) : null,
-      scheduleDays: scheduleDays.length > 0 ? scheduleDays : null,
-      scheduleTime: scheduleTime || null,
+      schedule: scheduleList
+        .filter((s) => s.day && s.time)
+        .map((s) => ({
+          day: s.day,
+          time: s.time,
+        })),
     }
 
     try {
@@ -143,144 +165,167 @@ const AddClassForm = ({ mode = 'add', initialData = {}, onClassSaved }) => {
         savedClass = await createClass(classData)
         toast.success('Lớp học đã được thêm thành công!')
       } else {
-        savedClass = await updateClass(initialData.id, classData) // Sử dụng updateClass
+        savedClass = await updateClass(initialData.id, classData)
         toast.success('Lớp học đã được cập nhật thành công!')
       }
-      onClassSaved(savedClass) // Gọi callback để refresh list và đóng modal
+      setIsAddEditModalOpen(false)
     } catch (error) {
       console.error(`Lỗi khi ${mode === 'add' ? 'thêm' : 'cập nhật'} lớp học:`, error)
       toast.error(error.message || `Có lỗi khi ${mode === 'add' ? 'thêm' : 'cập nhật'} lớp học.`)
     } finally {
-      setIsSubmitting(false) // Luôn bật lại inputs sau khi submit hoàn tất (thành công hoặc lỗi)
+      setIsSubmitting(false)
     }
   }
 
   return (
-    <CForm className={formValidated ? 'was-validated' : ''} onSubmit={handleSubmit} noValidate>
-      <CRow className="mb-3">
-        <CCol md={6}>
-          <CFormLabel htmlFor="className">
-            Tên lớp <span className="text-danger">*</span>
-          </CFormLabel>
-          <CFormInput
-            type="text"
-            id="className"
-            value={className}
-            onChange={(e) => setClassName(e.target.value)}
-            required
-            disabled={isSubmitting} // Sử dụng trạng thái để vô hiệu hóa
-          />
-          <CFormFeedback invalid>Vui lòng nhập Tên lớp.</CFormFeedback>
-        </CCol>
-        <CCol md={6}>
-          <CFormLabel htmlFor="classCode">
-            Mã lớp <span className="text-danger">*</span>
-          </CFormLabel>
-          <CFormInput
-            type="text"
-            id="classCode"
-            value={classCode}
-            onChange={(e) => setClassCode(e.target.value)}
-            required
-            disabled={isSubmitting} // Sử dụng trạng thái để vô hiệu hóa
-          />
-          <CFormFeedback invalid>Vui lòng nhập Mã lớp.</CFormFeedback>
-        </CCol>
-      </CRow>
-
-      <CRow className="mb-3">
-        <CCol md={6}>
-          <CFormLabel htmlFor="academicYear">
-            Năm học <span className="text-danger">*</span>
-          </CFormLabel>
-          <CFormInput
-            type="text"
-            id="academicYear"
-            value={academicYear}
-            onChange={(e) => setAcademicYear(e.target.value)}
-            required
-            disabled={isSubmitting} // Sử dụng trạng thái để vô hiệu hóa
-          />
-          <CFormFeedback invalid>Vui lòng nhập Năm học.</CFormFeedback>
-        </CCol>
-        <CCol md={6}>
-          <CFormLabel htmlFor="startDate">Ngày bắt đầu</CFormLabel>
-          <DatePicker
-            id="startDate"
-            selected={startDate}
-            onChange={(date) => setStartDate(date)}
-            dateFormat="dd/MM/yyyy"
-            className={`form-control ${formValidated && startDate === null && (totalSessions || scheduleDays.length > 0 || scheduleTime) ? 'is-invalid' : ''}`}
-            placeholderText="Chọn ngày bắt đầu (tùy chọn)"
-            disabled={isSubmitting} // Sử dụng trạng thái để vô hiệu hóa
-          />
-          <CFormFeedback invalid>Vui lòng chọn ngày bắt đầu nếu thiết lập lịch học.</CFormFeedback>
-        </CCol>
-      </CRow>
-
-      <CRow className="mb-3">
-        <CCol md={6}>
-          <CFormLabel htmlFor="totalSessions">Tổng số buổi học</CFormLabel>
-          <CFormInput
-            type="number"
-            id="totalSessions"
-            value={totalSessions}
-            onChange={(e) => setTotalSessions(e.target.value)}
-            placeholder="Ví dụ: 48"
-            disabled={isSubmitting} // Sử dụng trạng thái để vô hiệu hóa
-            className={
-              formValidated && startDate && (!totalSessions || totalSessions <= 0)
-                ? 'is-invalid'
-                : ''
-            }
-          />
-          <CFormFeedback invalid>Tổng số buổi học phải là số nguyên dương.</CFormFeedback>
-        </CCol>
-        <CCol md={6}>
-          <CFormLabel htmlFor="scheduleTime">Thời gian học (HH:MM:SS)</CFormLabel>
-          <CFormInput
-            type="time"
-            id="scheduleTime"
-            value={scheduleTime}
-            onChange={(e) => setScheduleTime(e.target.value)}
-            step="1" // Để hiển thị giây
-            disabled={isSubmitting} // Sử dụng trạng thái để vô hiệu hóa
-            className={formValidated && startDate && !scheduleTime ? 'is-invalid' : ''}
-          />
-          <CFormFeedback invalid>Vui lòng nhập thời gian học.</CFormFeedback>
-        </CCol>
-      </CRow>
-
-      <div className="mb-3">
-        <CFormLabel>Các ngày trong tuần</CFormLabel>
-        <CRow>
-          {daysOfWeekOptions.map((day) => (
-            <CCol xs={6} sm={4} md={3} lg={2} key={day.value}>
-              <CFormCheck
-                id={`day-${day.value}`}
-                label={day.label}
-                checked={scheduleDays.includes(day.value)}
-                onChange={() => handleScheduleDayChange(day.value)}
-                disabled={isSubmitting} // Sử dụng trạng thái để vô hiệu hóa
-                className="mb-1"
+    <>
+      <CModalHeader>
+        <CModalTitle>{mode === 'add' ? 'Thêm lớp học' : 'Chỉnh sửa lớp học'}</CModalTitle>
+      </CModalHeader>
+      <CForm className={formValidated ? 'was-validated' : ''} onSubmit={handleSubmit} noValidate>
+        <CModalBody>
+          <CRow className="mb-3">
+            <CCol md={6}>
+              <CFormLabel htmlFor="className">
+                Tên lớp <span className="text-danger">*</span>
+              </CFormLabel>
+              <CFormInput
+                type="text"
+                id="className"
+                value={className}
+                onChange={(e) => setClassName(e.target.value)}
+                required
+                disabled={isSubmitting}
               />
+              <CFormFeedback invalid>Vui lòng nhập Tên lớp.</CFormFeedback>
             </CCol>
-          ))}
-        </CRow>
-        <CFormFeedback
-          invalid
-          style={{
-            display: formValidated && startDate && scheduleDays.length === 0 ? 'block' : 'none',
-          }}
-        >
-          Vui lòng chọn ít nhất một ngày trong tuần.
-        </CFormFeedback>
-      </div>
+            <CCol md={6}>
+              <CFormLabel htmlFor="classCode">
+                Mã lớp <span className="text-danger">*</span>
+              </CFormLabel>
+              <CFormInput
+                type="text"
+                id="classCode"
+                value={classCode}
+                onChange={(e) => setClassCode(e.target.value)}
+                required
+                disabled={isSubmitting}
+              />
+              <CFormFeedback invalid>Vui lòng nhập Mã lớp.</CFormFeedback>
+            </CCol>
+          </CRow>
 
-      <CButton type="submit" color="primary" className="mt-3" disabled={isSubmitting}>
-        {isSubmitting ? 'Đang lưu...' : mode === 'add' ? 'Thêm lớp học' : 'Cập nhật lớp học'}
-      </CButton>
-    </CForm>
+          <CRow className="mb-3">
+            <CCol md={6}>
+              <CFormLabel htmlFor="academicYear">
+                Năm học <span className="text-danger">*</span>
+              </CFormLabel>
+              <CFormInput
+                type="text"
+                id="academicYear"
+                value={academicYear}
+                onChange={(e) => setAcademicYear(e.target.value)}
+                required
+                disabled={isSubmitting}
+              />
+              <CFormFeedback invalid>Vui lòng nhập Năm học.</CFormFeedback>
+            </CCol>
+            <CCol md={6}>
+              <CFormLabel htmlFor="startDate">Ngày bắt đầu:</CFormLabel>
+              <DatePicker
+                id="startDate"
+                selected={startDate}
+                onChange={(date) => setStartDate(date)}
+                dateFormat="dd/MM/yyyy"
+                className={`form-control ${formValidated && startDate === null && scheduleList.length > 0 ? 'is-invalid' : ''}`}
+                placeholderText="Chọn ngày bắt đầu (tùy chọn)"
+                disabled={isSubmitting}
+              />
+              <CFormFeedback invalid>
+                Vui lòng chọn ngày bắt đầu nếu thiết lập lịch học.
+              </CFormFeedback>
+            </CCol>
+          </CRow>
+
+          <CRow className="mb-3">
+            <CCol md={6}>
+              <CFormLabel htmlFor="totalSessions">Tổng số buổi học</CFormLabel>
+              <CFormInput
+                type="number"
+                id="totalSessions"
+                value={totalSessions}
+                onChange={(e) => setTotalSessions(e.target.value)}
+                placeholder="Ví dụ: 48"
+                disabled={isSubmitting}
+                className={
+                  formValidated && startDate && (!totalSessions || totalSessions <= 0)
+                    ? 'is-invalid'
+                    : ''
+                }
+              />
+              <CFormFeedback invalid>Tổng số buổi học phải là số nguyên dương.</CFormFeedback>
+            </CCol>
+          </CRow>
+
+          <CFormLabel>Lịch học (ngày + giờ)</CFormLabel>
+          {scheduleList.map((item, index) => (
+            <CRow key={index} className="mb-2">
+              <CCol md={5}>
+                <select
+                  className="form-control"
+                  value={item.day}
+                  onChange={(e) => handleScheduleChange(index, 'day', e.target.value)}
+                  disabled={isSubmitting}
+                  required
+                >
+                  <option value="">Chọn ngày</option>
+                  {daysOfWeekOptions.map((day) => (
+                    <option key={day.value} value={day.value}>
+                      {day.label}
+                    </option>
+                  ))}
+                </select>
+              </CCol>
+              <CCol md={5}>
+                <CFormInput
+                  type="time"
+                  value={item.time}
+                  onChange={(e) => handleScheduleChange(index, 'time', e.target.value)}
+                  step="1"
+                  disabled={isSubmitting}
+                  required
+                />
+              </CCol>
+              <CCol md={2}>
+                <CButton
+                  color="danger"
+                  onClick={() => removeScheduleItem(index)}
+                  disabled={isSubmitting}
+                >
+                  <CIcon icon={cilTrash} />
+                </CButton>
+              </CCol>
+            </CRow>
+          ))}
+          <CButton
+            color="primary"
+            onClick={addScheduleItem}
+            disabled={isSubmitting}
+            className="mb-3"
+          >
+            + Thêm lịch học
+          </CButton>
+        </CModalBody>
+        <CModalFooter>
+          <CButton color="secondary" className="mt-3" onClick={() => setIsAddEditModalOpen(false)}>
+            Hủy
+          </CButton>
+          <CButton type="submit" color="primary" className="mt-3" disabled={isSubmitting}>
+            {isSubmitting ? 'Đang lưu...' : mode === 'add' ? 'Thêm lớp học' : 'Cập nhật lớp học'}
+          </CButton>
+        </CModalFooter>
+      </CForm>
+    </>
   )
 }
 
