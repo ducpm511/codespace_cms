@@ -25,6 +25,8 @@ import { getStudentReports, deleteStudentReport } from '../../../services/studen
 import UploadReportModal from '../../../components/students/UploadReportModal'
 import { QRCodeCanvas } from 'qrcode.react'
 import { useRef } from 'react'
+import CIcon from '@coreui/icons-react'
+import { cilPencil, cilPlus, cilTrash, cilQrCode } from '@coreui/icons'
 
 const StudentReportsPage = () => {
   const [reports, setReports] = useState([])
@@ -173,7 +175,7 @@ const StudentReportsPage = () => {
                           setShowModal(true)
                         }}
                       >
-                        Sửa
+                        <CIcon icon={cilPencil} />
                       </CButton>
 
                       <CButton
@@ -182,16 +184,17 @@ const StudentReportsPage = () => {
                         className="me-2"
                         onClick={() =>
                           report.accessToken &&
-                          setQrData(
-                            `https://codespace.edu.vn/student-reports/${report.accessToken}`,
-                          )
+                          setQrData({
+                            student: report.student,
+                            url: `https://codespace.edu.vn/student-reports/${report.accessToken}`,
+                          })
                         }
                       >
-                        QR
+                        <CIcon icon={cilQrCode} />
                       </CButton>
 
                       <CButton color="danger" size="sm" onClick={() => handleDelete(report.id)}>
-                        Xoá
+                        <CIcon icon={cilTrash} />
                       </CButton>
                     </CTableDataCell>
                   </CTableRow>
@@ -218,10 +221,10 @@ const StudentReportsPage = () => {
         <CModalBody className="text-center" ref={qrRef}>
           {qrData && (
             <>
-              <QRCodeCanvas value={qrData} size={256} />
+              <QRCodeCanvas value={qrData.url} size={256} />
               <p className="mt-3">
-                <a href={qrData} target="_blank" rel="noreferrer">
-                  {qrData}
+                <a href={qrData.url} target="_blank" rel="noreferrer">
+                  {qrData.url}
                 </a>
               </p>
             </>

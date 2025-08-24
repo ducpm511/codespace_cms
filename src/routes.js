@@ -9,6 +9,7 @@ const StudentsPage = React.lazy(() => import('./views/pages/students/StudentsPag
 const QRCodePage = React.lazy(() => import('./views/pages/students/StudentQRCodePage'))
 const AttendancePage = React.lazy(() => import('./views/pages/students/AttendancePage'))
 const UsersPage = React.lazy(() => import('./views/pages/users/UsersPage'))
+const StaffsPage = React.lazy(() => import('./views/pages/staffs/StaffsPage'))
 const StudentReportPage = React.lazy(() => import('./views/pages/student-report/StudentReportPage'))
 const ClassSessionPage = React.lazy(() => import('./views/pages/classes/ClassSessionPage'))
 
@@ -21,6 +22,7 @@ const routes = [
   { path: '/students/attendance', name: 'Attendance', element: AttendancePage },
   { path: '/dashboard', name: 'Dashboard', element: Dashboard },
   { path: '/users', name: 'Users', element: UsersPage },
+  { path: '/staffs', name: 'Staffs', element: StaffsPage },
   { path: '/student-reports', name: 'Student Reports', element: StudentReportPage },
   { path: '/classes/:classId/sessions', name: 'Class Sessions', element: ClassSessionPage },
 ]

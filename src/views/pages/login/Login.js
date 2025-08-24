@@ -110,7 +110,8 @@ const Login = () => {
                   <div>
                     <h2>Sign up</h2>
                     <p>
-                      Chưa biết viết gì ở đây, xóa cái này đi thì xấu, nên viết tạm mấy cái này cho nó đỡ trống trải
+                      Chưa biết viết gì ở đây, xóa cái này đi thì xấu, nên viết tạm mấy cái này cho
+                      nó đỡ trống trải
                     </p>
                     {/* Bạn có thể giữ lại link đăng ký nếu muốn */}
                   </div>

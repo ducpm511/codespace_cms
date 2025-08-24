@@ -13,7 +13,7 @@ import {
   CListGroupItem,
 } from '@coreui/react'
 import { toast } from 'react-toastify'
-import { QRCodeCanvas } from 'qrcode.react' // <-- CHẮC CHẮN LÀ DÒNG NÀY
+import { QRCodeCanvas } from 'qrcode.react'
 import { cilSearch, cilQrCode } from '@coreui/icons'
 import CIcon from '@coreui/icons-react'
 
