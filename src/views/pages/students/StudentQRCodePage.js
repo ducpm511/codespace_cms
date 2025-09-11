@@ -138,7 +138,8 @@ const StudentQRCodePage = () => {
                           active={selectedStudent && selectedStudent.id === student.id}
                           className="cursor-pointer"
                         >
-                          {student.fullName} (ID: {student.id}, Lớp: {student.classCode || 'N/A'})
+                          {student.fullName} (ID: {student.id}, Lớp:{' '}
+                          {student.classes[0]?.classCode || 'N/A'})
                         </CListGroupItem>
                       ))}
                     </CListGroup>

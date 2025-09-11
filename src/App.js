@@ -1,5 +1,5 @@
 import React, { Suspense, useEffect } from 'react'
-import { HashRouter, Route, Routes, Navigate } from 'react-router-dom' // Import Navigate
+import { BrowserRouter, Route, Routes, Navigate } from 'react-router-dom' // Import Navigate
 import { useSelector } from 'react-redux'
 
 import { CSpinner, useColorModes } from '@coreui/react'
@@ -40,7 +40,7 @@ const App = () => {
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <HashRouter>
+    <BrowserRouter>
       <Suspense
         fallback={
           <div className="pt-3 text-center">
@@ -76,7 +76,7 @@ const App = () => {
           pauseOnHover // Tạm dừng khi di chuột qua
         />
       </Suspense>
-    </HashRouter>
+    </BrowserRouter>
   )
 }
 
