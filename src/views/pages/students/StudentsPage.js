@@ -17,7 +17,7 @@ import {
   CPagination,
   CPaginationItem,
 } from '@coreui/react'
-import { cilPencil, cilTrash, cilPlus } from '@coreui/icons'
+import { cilPencil, cilTrash, cilPlus, cilListRich } from '@coreui/icons'
 import CIcon from '@coreui/icons-react'
 import { CModal, CModalHeader, CModalTitle, CModalBody, CModalFooter } from '@coreui/react'
 import { toast } from 'react-toastify'
@@ -26,6 +26,7 @@ import 'react-toastify/dist/ReactToastify.css'
 import { getAllStudents, deleteStudent } from '../../../services/student.service'
 import { getAllClasses } from '../../../services/class.service' // Để lấy danh sách lớp cho filter
 import AddEditStudentForm from '../../../components/students/AddEditStudentForm' // Sẽ tạo component này
+import AttendanceModal from '../../../components/students/AttendanceModal'
 
 /**
  * @typedef {Object} Class
@@ -72,6 +73,10 @@ const StudentsPage = () => {
   /** @type {Student | null} */
   const [selectedStudent, setSelectedStudent] = useState(null) // Học sinh được chọn để sửa/xóa
   const [formMode, setFormMode] = useState('add') // 'add' hoặc 'edit'
+
+  const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false)
+  // Sử dụng state riêng để tránh xung đột với form sửa/xóa
+  const [studentForAttendance, setStudentForAttendance] = useState(null)
 
   const [page, setPage] = useState(1)
   const studentsPerPage = 10 // Đặt số lượng học sinh mỗi trang
@@ -204,6 +209,16 @@ const StudentsPage = () => {
     }
   }
 
+  const handleOpenAttendanceModal = (student) => {
+    setStudentForAttendance(student)
+    setIsAttendanceModalOpen(true)
+  }
+
+  const handleCloseAttendanceModal = () => {
+    setIsAttendanceModalOpen(false)
+    setStudentForAttendance(null)
+  }
+
   const totalPages = Math.ceil(totalItems / studentsPerPage)
 
   return (
@@ -317,6 +332,14 @@ const StudentsPage = () => {
                           </CTableDataCell>
                           <CTableDataCell>
                             <CButton
+                              color="success"
+                              size="sm"
+                              className="me-2"
+                              onClick={() => handleOpenAttendanceModal(studentItem)}
+                            >
+                              <CIcon icon={cilListRich} />
+                            </CButton>
+                            <CButton
                               color="info"
                               size="sm"
                               className="me-2"
@@ -410,6 +433,12 @@ const StudentsPage = () => {
           </CButton>
         </CModalFooter>
       </CModal>
+
+      <AttendanceModal
+        visible={isAttendanceModalOpen}
+        onClose={handleCloseAttendanceModal}
+        student={studentForAttendance}
+      />
     </CRow>
   )
 }
