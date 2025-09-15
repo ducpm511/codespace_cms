@@ -88,6 +88,9 @@ const AttendanceModal = ({ visible, onClose, student }) => {
     }
   }
 
+  if (!student) {
+    return null
+  }
   return (
     <CModal visible={visible} onClose={onClose} size="lg">
       <CModalHeader>
@@ -113,29 +116,38 @@ const AttendanceModal = ({ visible, onClose, student }) => {
             </CTableHead>
             <CTableBody>
               {sessions.length > 0 ? (
-                sessions.map((session) => (
-                  <CTableRow key={session.id}>
-                    <CTableDataCell className="text-center">
-                      <CFormCheck
-                        id={`session-${session.id}`}
-                        checked={selectedSessionIds.includes(session.id)}
-                        onChange={() => handleCheckboxChange(session.id)}
-                      />
-                    </CTableDataCell>
-                    <CTableDataCell>Buổi {session.sessionNumber}</CTableDataCell>
-                    <CTableDataCell>
-                      {new Date(session.sessionDate).toLocaleDateString('vi-VN')}
-                    </CTableDataCell>
-                    <CTableDataCell>{`${session.startTime}`}</CTableDataCell>
-                    <CTableDataCell>
-                      {session.attendances[0]?.status == 'present' ? (
-                        <span className="text-success">Đã điểm danh</span>
-                      ) : (
-                        <span className="text-danger">Chưa điểm danh</span>
-                      )}
-                    </CTableDataCell>
-                  </CTableRow>
-                ))
+                sessions.map((session) => {
+                  const studentAttendance = session.attendances.find(
+                    (att) => att.studentId === student.id,
+                  )
+
+                  return (
+                    <CTableRow key={session.id}>
+                      <CTableDataCell className="text-center">
+                        <CFormCheck
+                          id={`session-${session.id}`}
+                          checked={selectedSessionIds.includes(session.id)}
+                          // Vô hiệu hóa checkbox nếu học sinh đã điểm danh cho buổi này
+                          disabled={studentAttendance?.status === 'present'}
+                          onChange={() => handleCheckboxChange(session.id)}
+                        />
+                      </CTableDataCell>
+                      <CTableDataCell>Buổi {session.sessionNumber}</CTableDataCell>
+                      <CTableDataCell>
+                        {new Date(session.sessionDate).toLocaleDateString('vi-VN')}
+                      </CTableDataCell>
+                      <CTableDataCell>{`${session.startTime}`}</CTableDataCell>
+                      <CTableDataCell>
+                        {/* Sử dụng biến studentAttendance đã tìm được */}
+                        {studentAttendance?.status === 'present' ? (
+                          <span className="text-success">Đã điểm danh</span>
+                        ) : (
+                          <span className="text-danger">Chưa điểm danh</span>
+                        )}
+                      </CTableDataCell>
+                    </CTableRow>
+                  )
+                })
               ) : (
                 <CTableRow>
                   <CTableDataCell colSpan="4" className="text-center">
