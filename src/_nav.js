@@ -9,6 +9,8 @@ import {
   cilCalendarCheck,
   cilClipboard,
   cilMoodGood,
+  cilAvTimer,
+  cilCalendar,
 } from '@coreui/icons'
 import { CNavItem, CNavTitle } from '@coreui/react'
 
@@ -83,9 +85,50 @@ const _nav = [
   },
   {
     component: CNavItem,
+    name: 'Quản lý vai trò',
+    to: '/roles',
+    icon: <CIcon icon={cilClipboard} customClassName="nav-icon" />,
+  },
+  {
+    component: CNavItem,
     name: 'Quản lý nhân viên',
     to: '/staffs',
     icon: <CIcon icon={cilPeople} customClassName="nav-icon" />,
+  },
+  {
+    component: CNavItem,
+    name: 'Quản lý ca làm việc',
+    to: '/shifts',
+    icon: <CIcon icon={cilAvTimer} customClassName="nav-icon" />,
+  },
+
+  {
+    component: CNavItem,
+    name: 'Phân công Lịch làm việc',
+    to: '/schedules/weekly',
+    icon: <CIcon icon={cilCalendar} customClassName="nav-icon" />,
+  },
+  {
+    component: CNavItem,
+    name: 'Check-in Check-out',
+    to: '/staff-attendance',
+    icon: <CIcon icon={cilQrCode} customClassName="nav-icon" />,
+  },
+  {
+    component: CNavTitle,
+    name: 'Lương',
+  },
+  {
+    component: CNavItem,
+    name: 'Báo cáo Lương',
+    to: '/payroll',
+    icon: <CIcon icon={cilClipboard} customClassName="nav-icon" />,
+  },
+  {
+    component: CNavItem,
+    name: 'Duyệt OT',
+    to: '/ot-requests',
+    icon: <CIcon icon={cilClipboard} customClassName="nav-icon" />,
   },
 ]
 

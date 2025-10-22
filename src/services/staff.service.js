@@ -12,6 +12,12 @@ export const getStaffs = async ({ page = 1, limit = 10, search = '', role = '' }
   })
 }
 
+export const getAllStaff = () => {
+  return apiClient('/staffs', {
+    method: 'GET',
+  })
+}
+
 export const createStaff = async (staffData) => {
   return await apiClient('/staffs', {
     method: 'POST',

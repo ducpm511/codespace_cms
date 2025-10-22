@@ -15,6 +15,8 @@ import {
   CCol,
   CFormFeedback,
 } from '@coreui/react'
+import CIcon from '@coreui/icons-react' // --- THÊM MỚI
+import { cilTrash } from '@coreui/icons'
 
 const StaffModal = ({ visible, onClose, onSave, initialData = null, isEditing = false }) => {
   const [fullName, setFullName] = useState('')
@@ -29,6 +31,8 @@ const StaffModal = ({ visible, onClose, onSave, initialData = null, isEditing = 
   // THÊM MỚI: State để quản lý validation
   const [validated, setValidated] = useState(false)
 
+  const [rates, setRates] = useState([{ role: '', rate: '' }])
+
   useEffect(() => {
     if (initialData) {
       setFullName(initialData.fullName || '')
@@ -40,6 +44,13 @@ const StaffModal = ({ visible, onClose, onSave, initialData = null, isEditing = 
       setAddress(initialData.address || '')
       setIdentityCardNumber(initialData.identityCardNumber || '')
       setEmergencyContactNumber(initialData.emergencyContactNumber || '')
+
+      if (initialData.rates && typeof initialData.rates === 'object') {
+        const ratesArray = Object.entries(initialData.rates).map(([role, rate]) => ({ role, rate }))
+        setRates(ratesArray.length > 0 ? ratesArray : [{ role: '', rate: '' }])
+      } else {
+        setRates([{ role: '', rate: '' }])
+      }
     } else {
       // Reset form khi không có initialData
       setFullName('')
@@ -50,10 +61,27 @@ const StaffModal = ({ visible, onClose, onSave, initialData = null, isEditing = 
       setIdentityCardNumber('')
       setEmergencyContactNumber('')
       setTitle('Giáo viên')
+      setRates([{ role: '', rate: '' }])
     }
     // Reset trạng thái validation khi modal mở/đóng hoặc dữ liệu thay đổi
     setValidated(false)
   }, [initialData, visible])
+
+  const handleRateChange = (index, field, value) => {
+    const updatedRates = [...rates]
+    updatedRates[index][field] = value
+    setRates(updatedRates)
+  }
+
+  const addRate = () => {
+    setRates([...rates, { role: '', rate: '' }])
+  }
+
+  const removeRate = (index) => {
+    const updatedRates = [...rates]
+    updatedRates.splice(index, 1)
+    setRates(updatedRates)
+  }
 
   // SỬA ĐỔI: Hàm handleSubmit để kiểm tra validation
   const handleSubmit = (event) => {
@@ -67,6 +95,13 @@ const StaffModal = ({ visible, onClose, onSave, initialData = null, isEditing = 
       // Nếu không, chỉ cần set validated thành true để hiển thị lỗi
     } else {
       // Nếu hợp lệ, tạo dữ liệu và gọi onSave
+      const ratesObject = rates
+        .filter((r) => r.role && r.rate) // Lọc ra các dòng có đủ dữ liệu
+        .reduce((acc, curr) => {
+          acc[curr.role] = parseFloat(curr.rate)
+          return acc
+        }, {})
+
       const userData = {
         fullName,
         email,
@@ -76,11 +111,10 @@ const StaffModal = ({ visible, onClose, onSave, initialData = null, isEditing = 
         identityCardNumber,
         emergencyContactNumber,
         title,
+        rates: ratesObject, // Thêm rates vào payload
       }
       onSave(userData)
     }
-
-    // Bật chế độ hiển thị lỗi cho các lần submit sau
     setValidated(true)
   }
 
@@ -192,6 +226,53 @@ const StaffModal = ({ visible, onClose, onSave, initialData = null, isEditing = 
               <CFormFeedback invalid>Vui lòng nhập SĐT khẩn cấp</CFormFeedback>
             </CCol>
           </CRow>
+
+          <hr className="my-4" />
+          <h5>Mức thù lao theo vai trò</h5>
+          <p className="text-muted small">
+            Dành cho nhân viên part-time, giáo viên, trợ giảng. Bỏ trống nếu là nhân viên full-time.
+          </p>
+
+          {rates.map((r, index) => (
+            <CRow key={index} className="mb-2 align-items-center">
+              <CCol md={5}>
+                <CFormLabel htmlFor={`rate-role-${index}`} className="visually-hidden">
+                  Vai trò
+                </CFormLabel>
+                <CFormInput
+                  id={`rate-role-${index}`}
+                  placeholder="Vai trò (vd: part-time, teacher)"
+                  value={r.role}
+                  onChange={(e) => handleRateChange(index, 'role', e.target.value)}
+                />
+              </CCol>
+              <CCol md={5}>
+                <CFormLabel htmlFor={`rate-value-${index}`} className="visually-hidden">
+                  Mức lương
+                </CFormLabel>
+                <CFormInput
+                  id={`rate-value-${index}`}
+                  type="number"
+                  placeholder="Mức lương/giờ (vd: 50000)"
+                  value={r.rate}
+                  onChange={(e) => handleRateChange(index, 'rate', e.target.value)}
+                />
+              </CCol>
+              <CCol md={2}>
+                <CButton
+                  color="danger"
+                  variant="outline"
+                  onClick={() => removeRate(index)}
+                  disabled={rates.length <= 1}
+                >
+                  <CIcon icon={cilTrash} />
+                </CButton>
+              </CCol>
+            </CRow>
+          ))}
+          <CButton color="secondary" variant="outline" size="sm" onClick={addRate} className="mt-2">
+            + Thêm mức thù lao
+          </CButton>
         </CModalBody>
         <CModalFooter>
           <CButton color="secondary" onClick={onClose}>
