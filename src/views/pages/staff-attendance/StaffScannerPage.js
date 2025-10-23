@@ -98,7 +98,7 @@ const StaffScannerPage = () => {
         <CCardBody className="text-center">
           <h4>Vui lòng đưa mã QR của bạn vào camera</h4>
           <div style={{ width: '100%', maxWidth: '400px', margin: 'auto' }}>
-            <BarcodeScannerComponent onUpdate={handleScan} />
+            <BarcodeScannerComponent onUpdate={handleScan} facingMode="user" />
           </div>
 
           {/* Hiển thị thông báo thân thiện hơn */}
