@@ -14,6 +14,24 @@ import {
 import { toast } from 'react-toastify'
 import { createShift, updateShift } from '../../../services/shift.service'
 
+// --- THÊM HÀM HELPER NÀY ---
+// Hàm này sẽ chuyển đổi object {hours, minutes} thành chuỗi "HH:mm:ss"
+const formatDurationToString = (duration) => {
+  // Nếu là string rồi (ví dụ: "01:30:00"), trả về luôn
+  if (typeof duration === 'string') {
+    return duration
+  }
+  // Nếu là object, chuyển đổi
+  if (duration && typeof duration === 'object') {
+    const hours = String(duration.hours || 0).padStart(2, '0')
+    const minutes = String(duration.minutes || 0).padStart(2, '0')
+    const seconds = String(duration.seconds || 0).padStart(2, '0')
+    return `${hours}:${minutes}:${seconds}`
+  }
+  // Fallback nếu là null hoặc undefined
+  return '00:00:00'
+}
+
 const AddEditShiftModal = ({ visible, onClose, mode, initialData, onSuccess }) => {
   const [formData, setFormData] = useState({
     name: '',
@@ -30,7 +48,9 @@ const AddEditShiftModal = ({ visible, onClose, mode, initialData, onSuccess }) =
         name: initialData.name || '',
         startTime: initialData.startTime || '08:00:00',
         endTime: initialData.endTime || '17:30:00',
-        breakDuration: initialData.breakDuration || '01:30:00',
+        // --- SỬA LẠI DÒNG NÀY ---
+        // Chuyển đổi object {hours, minutes} thành chuỗi "HH:mm:ss"
+        breakDuration: formatDurationToString(initialData.breakDuration),
         otMultiplier: initialData.otMultiplier || 1.5,
       })
     } else {
@@ -39,6 +59,7 @@ const AddEditShiftModal = ({ visible, onClose, mode, initialData, onSuccess }) =
         name: '',
         startTime: '08:00:00',
         endTime: '17:30:00',
+        breakDuration: '01:30:00',
         otMultiplier: 1.5,
       })
     }
@@ -53,16 +74,25 @@ const AddEditShiftModal = ({ visible, onClose, mode, initialData, onSuccess }) =
     e.preventDefault()
     setIsSubmitting(true)
     try {
+      // Đảm bảo otMultiplier là số (input có thể trả về string)
+      // và breakDuration là chuỗi HH:mm:ss (đã được xử lý bởi input type="time")
+      const payload = {
+        ...formData,
+        otMultiplier: parseFloat(formData.otMultiplier),
+      }
+
       if (mode === 'add') {
-        await createShift(formData)
+        await createShift(payload)
         toast.success('Thêm ca làm việc thành công!')
       } else {
-        await updateShift(initialData.id, formData)
+        await updateShift(initialData.id, payload)
         toast.success('Cập nhật ca làm việc thành công!')
       }
       onSuccess()
     } catch (error) {
-      toast.error(error.message || 'Đã có lỗi xảy ra.')
+      // Lấy lỗi validation từ server (nếu có)
+      const errorMessage = error.data?.message?.join(', ') || error.message || 'Đã có lỗi xảy ra.'
+      toast.error(errorMessage)
     } finally {
       setIsSubmitting(false)
     }
@@ -103,7 +133,7 @@ const AddEditShiftModal = ({ visible, onClose, mode, initialData, onSuccess }) =
               required
             />
           </div>
-          {/* <div className="mb-3">
+          <div className="mb-3">
             <CFormLabel htmlFor="breakDuration">Giờ nghỉ (HH:mm:ss)</CFormLabel>
             <CFormInput
               id="breakDuration"
@@ -113,7 +143,7 @@ const AddEditShiftModal = ({ visible, onClose, mode, initialData, onSuccess }) =
               onChange={handleChange}
               required
             />
-          </div> */}
+          </div>
           <div className="mb-3">
             <CFormLabel htmlFor="otMultiplier">Hệ số OT</CFormLabel>
             <CFormInput
