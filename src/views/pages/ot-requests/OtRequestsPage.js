@@ -28,6 +28,8 @@ import { toast } from 'react-toastify'
 import { DateTime, Duration } from 'luxon' // Import Duration
 import { getOtRequests, updateOtRequestStatus } from '../../../services/otRequest.service'
 
+const VN_TIMEZONE = 'Asia/Ho_Chi_Minh'
+
 // Hàm helper để format Duration thành chuỗi H giờ M phút
 const formatDurationObj = (isoDurationString) => {
   if (!isoDurationString) return 'N/A'
@@ -49,6 +51,12 @@ const formatDurationObj = (isoDurationString) => {
     console.error('Error parsing duration string:', isoDurationString, e)
     return 'Lỗi định dạng'
   }
+}
+
+const formatTime = (isoString) => {
+  if (!isoString) return 'N/A'
+  // Chuyển đổi từ ISO (đã bao gồm múi giờ) về múi giờ VN
+  return DateTime.fromISO(isoString).setZone(VN_TIMEZONE).toFormat('HH:mm:ss')
 }
 
 const OtRequestsPage = () => {
@@ -107,6 +115,48 @@ const OtRequestsPage = () => {
     }
   }
 
+  const formatSchedules = (schedules) => {
+    if (!schedules || schedules.length === 0) {
+      return <small className="text-muted">Không có lịch</small>
+    }
+    return schedules.map((sch) => {
+      if (sch.classSession) {
+        return (
+          <div key={sch.id} className="mb-1">
+            <CBadge color="primary">{sch.roleKey}</CBadge>
+            <span className="ms-1">
+              {sch.classSession.class?.className || 'Lớp học'} ({sch.classSession.startTime})
+            </span>
+          </div>
+        )
+      } else if (sch.shift) {
+        return (
+          <div key={sch.id} className="mb-1">
+            <CBadge color="success">{sch.roleKey || 'part-time'}</CBadge>
+            <span className="ms-1">
+              {sch.shift.name} ({sch.shift.startTime} - {sch.shift.endTime})
+            </span>
+          </div>
+        )
+      }
+      return null
+    })
+  }
+
+  // --- THÊM HÀM HELPER MỚI: Hiển thị giờ In/Out ---
+  const formatCheckInOut = (attendances) => {
+    if (!attendances || attendances.length === 0) {
+      return 'N/A'
+    }
+    const firstCheckIn = attendances.find((a) => a.type === 'check-in')
+    const lastCheckOut = [...attendances].reverse().find((a) => a.type === 'check-out')
+
+    const inTime = firstCheckIn ? formatTime(firstCheckIn.timestamp) : '??:??'
+    const outTime = lastCheckOut ? formatTime(lastCheckOut.timestamp) : '??:??'
+
+    return `${inTime} - ${outTime}`
+  }
+
   return (
     <CRow>
       <CCol xs={12}>
@@ -123,6 +173,8 @@ const OtRequestsPage = () => {
                   <CTableRow>
                     <CTableHeaderCell>Nhân viên</CTableHeaderCell>
                     <CTableHeaderCell>Ngày</CTableHeaderCell>
+                    <CTableHeaderCell>Giờ làm (In-Out)</CTableHeaderCell>
+                    <CTableHeaderCell>Lịch trình trong ngày</CTableHeaderCell>
                     <CTableHeaderCell>Thời gian OT (Phát hiện)</CTableHeaderCell>
                     <CTableHeaderCell>Hành động</CTableHeaderCell>
                   </CTableRow>
@@ -141,6 +193,8 @@ const OtRequestsPage = () => {
                       <CTableDataCell>
                         {DateTime.fromISO(req.date).toFormat('dd/MM/yyyy')}
                       </CTableDataCell>
+                      <CTableDataCell>{formatCheckInOut(req.attendances)}</CTableDataCell>
+                      <CTableDataCell>{formatSchedules(req.schedules)}</CTableDataCell>
                       <CTableDataCell>{formatDurationObj(req.detectedDuration)}</CTableDataCell>
                       <CTableDataCell>
                         <CButton
@@ -171,14 +225,27 @@ const OtRequestsPage = () => {
         </CModalHeader>
         <CModalBody>
           <p>
-            Bạn có chắc chắn muốn <strong>{action === 'approve' ? 'phê duyệt' : 'từ chối'}</strong>{' '}
-            yêu cầu làm thêm giờ của nhân viên <strong>{selectedRequest?.staff?.fullName}</strong>{' '}
-            vào ngày{' '}
+            Nhân viên: <strong>{selectedRequest?.staff?.fullName}</strong>
+            <br />
+            Ngày:{' '}
             <strong>
               {selectedRequest ? DateTime.fromISO(selectedRequest.date).toFormat('dd/MM/yyyy') : ''}
-            </strong>{' '}
-            với thời gian là <strong>{formatDurationObj(selectedRequest?.detectedDuration)}</strong>
-            ?
+            </strong>
+          </p>
+          <hr />
+          <p>
+            {/* --- THÊM DỮ LIỆU MỚI VÀO MODAL --- */}
+            Giờ làm thực tế: <strong>{formatCheckInOut(selectedRequest?.attendances)}</strong>
+            <br />
+            Lịch trình trong ngày:
+            <div className="ps-3 mt-2 mb-2">{formatSchedules(selectedRequest?.schedules)}</div>
+            Thời gian OT phát hiện:{' '}
+            <strong>{formatDurationObj(selectedRequest?.detectedDuration)}</strong>
+          </p>
+          <hr />
+          <p>
+            Bạn có chắc chắn muốn <strong>{action === 'approve' ? 'phê duyệt' : 'từ chối'}</strong>{' '}
+            yêu cầu này không?
           </p>
           <div className="mt-3">
             <CFormLabel htmlFor="notes">Ghi chú (tùy chọn)</CFormLabel>
