@@ -21,12 +21,15 @@ import {
   CModalFooter,
   CFormTextarea,
   CFormLabel,
+  CFormInput,
+  CFormSelect,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
 import { cilCheckCircle, cilXCircle } from '@coreui/icons'
 import { toast } from 'react-toastify'
 import { DateTime, Duration } from 'luxon' // Import Duration
 import { getOtRequests, updateOtRequestStatus } from '../../../services/otRequest.service'
+import { getStaffDetails } from '../../../services/staff.service'
 
 const VN_TIMEZONE = 'Asia/Ho_Chi_Minh'
 
@@ -67,6 +70,11 @@ const OtRequestsPage = () => {
   const [notes, setNotes] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  const [staffRates, setStaffRates] = useState(null) // Lưu rates của nhân viên được chọn
+  const [loadingModalData, setLoadingModalData] = useState(false)
+  const [selectedRoleKey, setSelectedRoleKey] = useState('')
+  const [multiplier, setMultiplier] = useState(1)
+
   const fetchPendingRequests = async () => {
     setLoading(true)
     try {
@@ -83,16 +91,35 @@ const OtRequestsPage = () => {
     fetchPendingRequests()
   }, [])
 
-  const openModal = (request, selectedAction) => {
+  const openModal = async (request, selectedAction) => {
     setSelectedRequest(request)
     setAction(selectedAction)
-    setNotes('') // Reset notes
+    setNotes('')
+    setSelectedRoleKey('')
+    setMultiplier(1)
+
+    if (selectedAction === 'approve') {
+      // Tải `rates` của nhân viên để hiển thị trong dropdown
+      setLoadingModalData(true)
+      try {
+        const staffDetails = await getStaffDetails(request.staffId) // Cần tạo hàm này trong staff.service.js
+        setStaffRates(staffDetails.rates || {})
+      } catch (e) {
+        toast.error('Lỗi tải chi tiết nhân viên.')
+        closeModal()
+      } finally {
+        setLoadingModalData(false)
+      }
+    }
   }
 
   const closeModal = () => {
     setSelectedRequest(null)
     setAction(null)
     setNotes('')
+    setStaffRates(null)
+    setSelectedRoleKey('')
+    setMultiplier(1)
   }
 
   const handleConfirmAction = async () => {
@@ -233,20 +260,58 @@ const OtRequestsPage = () => {
             </strong>
           </p>
           <hr />
-          <p>
-            {/* --- THÊM DỮ LIỆU MỚI VÀO MODAL --- */}
-            Giờ làm thực tế: <strong>{formatCheckInOut(selectedRequest?.attendances)}</strong>
-            <br />
-            Lịch trình trong ngày:
-            <div className="ps-3 mt-2 mb-2">{formatSchedules(selectedRequest?.schedules)}</div>
-            Thời gian OT phát hiện:{' '}
-            <strong>{formatDurationObj(selectedRequest?.detectedDuration)}</strong>
-          </p>
+          {/* --- THÊM DỮ LIỆU MỚI VÀO MODAL --- */}
+          Giờ làm thực tế: <strong>{formatCheckInOut(selectedRequest?.attendances)}</strong>
+          <br />
+          Lịch trình trong ngày:
+          <div className="ps-3 mt-2 mb-2">{formatSchedules(selectedRequest?.schedules)}</div>
+          Thời gian OT phát hiện:{' '}
+          <strong>{formatDurationObj(selectedRequest?.detectedDuration)}</strong>
           <hr />
           <p>
             Bạn có chắc chắn muốn <strong>{action === 'approve' ? 'phê duyệt' : 'từ chối'}</strong>{' '}
             yêu cầu này không?
           </p>
+          {action === 'approve' &&
+            (loadingModalData ? (
+              <CSpinner />
+            ) : (
+              <>
+                <hr />
+                <div className="mb-3">
+                  <CFormLabel htmlFor="approvedRoleKey">Áp dụng Mức thù lao</CFormLabel>
+                  <CFormSelect
+                    id="approvedRoleKey"
+                    value={selectedRoleKey}
+                    onChange={(e) => setSelectedRoleKey(e.target.value)}
+                    required
+                  >
+                    <option value="">-- Chọn Rate Cơ sở --</option>
+                    {/* Lặp qua các key của object rates */}
+                    {staffRates && Object.keys(staffRates).length > 0 ? (
+                      Object.entries(staffRates).map(([key, rate]) => (
+                        <option key={key} value={key}>
+                          {key} ({parseInt(rate).toLocaleString('vi-VN')} VNĐ/giờ)
+                        </option>
+                      ))
+                    ) : (
+                      <option disabled>Nhân viên này không có rate.</option>
+                    )}
+                  </CFormSelect>
+                </div>
+                <div className="mb-3">
+                  <CFormLabel htmlFor="multiplier">Hệ số nhân (Mặc định: 1)</CFormLabel>
+                  <CFormInput
+                    id="multiplier"
+                    type="number"
+                    step="0.1"
+                    min="1"
+                    value={multiplier}
+                    onChange={(e) => setMultiplier(e.target.value)}
+                  />
+                </div>
+              </>
+            ))}
           <div className="mt-3">
             <CFormLabel htmlFor="notes">Ghi chú (tùy chọn)</CFormLabel>
             <CFormTextarea

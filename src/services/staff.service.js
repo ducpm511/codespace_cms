@@ -18,6 +18,12 @@ export const getAllStaff = () => {
   })
 }
 
+export const getStaffDetails = async (id) => {
+  return await apiClient(`/staffs/${id}`, {
+    method: 'GET',
+  })
+}
+
 export const createStaff = async (staffData) => {
   return await apiClient('/staffs', {
     method: 'POST',
