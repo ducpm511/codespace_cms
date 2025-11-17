@@ -115,6 +115,12 @@ const _nav = [
     icon: <CIcon icon={cilQrCode} customClassName="nav-icon" />,
   },
   {
+    component: CNavItem,
+    name: 'Quản lý chấm công',
+    to: '/staff-attendance/manage',
+    icon: <CIcon icon={cilCalendarCheck} customClassName="nav-icon" />,
+  },
+  {
     component: CNavTitle,
     name: 'Lương',
   },

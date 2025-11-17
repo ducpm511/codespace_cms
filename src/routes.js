@@ -18,6 +18,9 @@ const StaffScannerPage = React.lazy(() => import('./views/pages/staff-attendance
 const PayrollReportPage = React.lazy(() => import('./views/pages/payroll/PayrollReportPage'))
 const RolePage = React.lazy(() => import('./views/pages/roles/RolePage'))
 const OtRequestsPage = React.lazy(() => import('./views/pages/ot-requests/OtRequestsPage'))
+const ManageAttendancePage = React.lazy(
+  () => import('./views/pages/staff-attendance/ManageAttendancePage'),
+)
 
 const routes = [
   { path: '/', exact: true, name: 'Home' },
@@ -37,6 +40,7 @@ const routes = [
   { path: '/payroll', name: 'Báo cáo Lương', element: PayrollReportPage },
   { path: '/roles', name: 'Quản lý vai trò', element: RolePage },
   { path: '/ot-requests', name: 'Duyệt OT', element: OtRequestsPage },
+  { path: '/staff-attendance/manage', name: 'Quản lý chấm công', element: ManageAttendancePage },
 ]
 
 export default routes
