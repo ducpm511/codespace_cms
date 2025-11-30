@@ -127,14 +127,30 @@ const OtRequestsPage = () => {
 
     setIsSubmitting(true)
     try {
+      // 1. Tạo payload cơ bản
       const payload = {
         status: action === 'approve' ? 'approved' : 'rejected',
         notes: notes || null,
       }
+
+      // 2. Nếu là Duyệt (approve), bổ sung thêm thông tin rate
+      if (action === 'approve') {
+        if (!selectedRoleKey) {
+          toast.error('Vui lòng chọn mức thù lao áp dụng.')
+          setIsSubmitting(false)
+          return
+        }
+        // --- THÊM CÁC DÒNG NÀY ---
+        payload.approvedRoleKey = selectedRoleKey
+        payload.approvedMultiplier = parseFloat(multiplier) || 1 // Mặc định là 1 nếu không nhập
+      }
+
+      // 3. Gửi payload đầy đủ đi
       await updateOtRequestStatus(selectedRequest.id, payload)
+
       toast.success(`Đã ${action === 'approve' ? 'phê duyệt' : 'từ chối'} yêu cầu OT thành công!`)
       closeModal()
-      fetchPendingRequests() // Tải lại danh sách
+      fetchPendingRequests()
     } catch (error) {
       toast.error(error.message || 'Có lỗi xảy ra.')
     } finally {
