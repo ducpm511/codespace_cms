@@ -187,7 +187,7 @@ const UploadReportModal = ({ visible, onClose, onSuccess, initialData = null }) 
   }
 
   return (
-    <CModal visible={visible} onClose={onClose} size="lg">
+    <CModal visible={visible} onClose={onClose} backdrop="static" size="lg">
       <CModalHeader>
         <CModalTitle>Tạo báo cáo học sinh</CModalTitle>
       </CModalHeader>

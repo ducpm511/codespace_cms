@@ -29,7 +29,7 @@ import { cilCheckCircle, cilXCircle } from '@coreui/icons'
 import { toast } from 'react-toastify'
 import { DateTime, Duration } from 'luxon' // Import Duration
 import { getOtRequests, updateOtRequestStatus } from '../../../services/otRequest.service'
-import { getStaffDetails } from '../../../services/staff.service'
+import { getStaffDetails, getAllStaff } from '../../../services/staff.service'
 
 const VN_TIMEZONE = 'Asia/Ho_Chi_Minh'
 
@@ -74,11 +74,26 @@ const OtRequestsPage = () => {
   const [loadingModalData, setLoadingModalData] = useState(false)
   const [selectedRoleKey, setSelectedRoleKey] = useState('')
   const [multiplier, setMultiplier] = useState(1)
+  const [staffList, setStaffList] = useState([]) // Danh sách nhân viên để chọn
+  const [filterStaffId, setFilterStaffId] = useState('')
+
+  useEffect(() => {
+    const fetchStaff = async () => {
+      try {
+        const data = await getAllStaff()
+        setStaffList(data)
+      } catch (e) {
+        console.error('Lỗi tải danh sách nhân viên', e)
+      }
+    }
+    fetchStaff()
+  }, [])
 
   const fetchPendingRequests = async () => {
     setLoading(true)
     try {
-      const data = await getOtRequests('pending')
+      // Truyền filterStaffId vào service
+      const data = await getOtRequests('pending', filterStaffId || null)
       setRequests(data)
     } catch (error) {
       toast.error('Lỗi khi tải danh sách yêu cầu OT.')
@@ -89,7 +104,7 @@ const OtRequestsPage = () => {
 
   useEffect(() => {
     fetchPendingRequests()
-  }, [])
+  }, [filterStaffId])
 
   const openModal = async (request, selectedAction) => {
     setSelectedRequest(request)
@@ -205,7 +220,25 @@ const OtRequestsPage = () => {
       <CCol xs={12}>
         <CCard className="mb-4">
           <CCardHeader>
-            <strong>Phê duyệt Yêu cầu Làm thêm giờ (OT)</strong>
+            <div className="d-flex justify-content-between align-items-center">
+              <div>
+                <strong>Phê duyệt Yêu cầu Làm thêm giờ (OT)</strong>
+              </div>
+              <div style={{ width: '300px' }}>
+                <CFormSelect
+                  size="sm"
+                  value={filterStaffId}
+                  onChange={(e) => setFilterStaffId(e.target.value)}
+                >
+                  <option value="">-- Tất cả nhân viên --</option>
+                  {staffList.map((staff) => (
+                    <option key={staff.id} value={staff.id}>
+                      {staff.fullName} ({staff.email})
+                    </option>
+                  ))}
+                </CFormSelect>
+              </div>
+            </div>
           </CCardHeader>
           <CCardBody>
             {loading ? (

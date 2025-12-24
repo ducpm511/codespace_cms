@@ -5,8 +5,8 @@ import apiClient from '../utils/apiClient'
  * @param {string} [status] - 'pending', 'approved', 'rejected' (tùy chọn)
  * @returns {Promise<any>}
  */
-export const getOtRequests = (status) => {
-  const params = status ? new URLSearchParams({ status }).toString() : ''
+export const getOtRequests = (status, staffId) => {
+  const params = status ? new URLSearchParams({ status, staffId }).toString() : ''
   return apiClient(`/ot-requests?${params}`)
 }
 
