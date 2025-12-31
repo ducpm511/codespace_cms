@@ -23,6 +23,8 @@ import {
   CFormLabel,
   CFormInput,
   CFormSelect,
+  CInputGroup,
+  CInputGroupText,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
 import { cilCheckCircle, cilXCircle } from '@coreui/icons'
@@ -77,6 +79,9 @@ const OtRequestsPage = () => {
   const [staffList, setStaffList] = useState([]) // Danh sách nhân viên để chọn
   const [filterStaffId, setFilterStaffId] = useState('')
 
+  const [manualHours, setManualHours] = useState(0)
+  const [manualMinutes, setManualMinutes] = useState(0)
+
   useEffect(() => {
     const fetchStaff = async () => {
       try {
@@ -115,6 +120,9 @@ const OtRequestsPage = () => {
 
     if (selectedAction === 'approve') {
       // Tải `rates` của nhân viên để hiển thị trong dropdown
+      const { h, m } = parseDurationToNumbers(request.detectedDuration)
+      setManualHours(h)
+      setManualMinutes(m)
       setLoadingModalData(true)
       try {
         const staffDetails = await getStaffDetails(request.staffId) // Cần tạo hàm này trong staff.service.js
@@ -158,6 +166,9 @@ const OtRequestsPage = () => {
         // --- THÊM CÁC DÒNG NÀY ---
         payload.approvedRoleKey = selectedRoleKey
         payload.approvedMultiplier = parseFloat(multiplier) || 1 // Mặc định là 1 nếu không nhập
+        const hStr = String(manualHours).padStart(2, '0')
+        const mStr = String(manualMinutes).padStart(2, '0')
+        payload.approvedDuration = `${hStr}:${mStr}`
       }
 
       // 3. Gửi payload đầy đủ đi
@@ -213,6 +224,32 @@ const OtRequestsPage = () => {
     const outTime = lastCheckOut ? formatTime(lastCheckOut.timestamp) : '??:??'
 
     return `${inTime} - ${outTime}`
+  }
+
+  // Hàm helper để tách giờ/phút từ dữ liệu gốc
+  const parseDurationToNumbers = (isoDurationString) => {
+    let h = 0
+    let m = 0
+
+    if (!isoDurationString) return { h, m }
+
+    // Trường hợp 1: Object { hours: 1, minutes: 30 } (từ TypeORM Interval)
+    if (typeof isoDurationString === 'object') {
+      h = isoDurationString.hours || 0
+      m = isoDurationString.minutes || 0
+      return { h, m }
+    }
+
+    // Trường hợp 2: String "01:30:00" hoặc ISO
+    try {
+      if (typeof isoDurationString === 'string' && isoDurationString.includes(':')) {
+        const parts = isoDurationString.split(':')
+        h = parseInt(parts[0], 10) || 0
+        m = parseInt(parts[1], 10) || 0
+      }
+    } catch (e) {}
+
+    return { h, m }
   }
 
   return (
@@ -327,6 +364,43 @@ const OtRequestsPage = () => {
             ) : (
               <>
                 <hr />
+                <div className="mb-3">
+                  <CFormLabel htmlFor="approvedDuration">Thời gian Duyệt (Amount)</CFormLabel>
+                  <CRow>
+                    <CCol xs={6}>
+                      <CInputGroup>
+                        <CFormInput
+                          type="number"
+                          min="0"
+                          value={manualHours}
+                          onChange={(e) =>
+                            setManualHours(Math.max(0, parseInt(e.target.value) || 0))
+                          }
+                        />
+                        <CInputGroupText>Giờ</CInputGroupText>
+                      </CInputGroup>
+                    </CCol>
+                    <CCol xs={6}>
+                      <CInputGroup>
+                        <CFormInput
+                          type="number"
+                          min="0"
+                          max="59"
+                          value={manualMinutes}
+                          onChange={(e) =>
+                            setManualMinutes(
+                              Math.max(0, Math.min(59, parseInt(e.target.value) || 0)),
+                            )
+                          }
+                        />
+                        <CInputGroupText>Phút</CInputGroupText>
+                      </CInputGroup>
+                    </CCol>
+                  </CRow>
+                  <div className="form-text mt-1">
+                    Nhập tổng thời gian OT được tính lương (Ví dụ: 0 Giờ 30 Phút).
+                  </div>
+                </div>
                 <div className="mb-3">
                   <CFormLabel htmlFor="approvedRoleKey">Áp dụng Mức thù lao</CFormLabel>
                   <CFormSelect
