@@ -21,66 +21,104 @@ import {
   CModalFooter,
   CFormTextarea,
   CFormLabel,
-  CFormInput,
   CFormSelect,
+  CFormInput,
   CInputGroup,
   CInputGroupText,
+  CTooltip,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilCheckCircle, cilXCircle } from '@coreui/icons'
+import { cilCheckCircle, cilXCircle, cilPlus, cilTrash, cilPencil } from '@coreui/icons'
 import { toast } from 'react-toastify'
-import { DateTime, Duration } from 'luxon' // Import Duration
-import { getOtRequests, updateOtRequestStatus } from '../../../services/otRequest.service'
+import { DateTime } from 'luxon'
+import { getOtRequests, updateOtRequestStatus } from '../../../services/otRequest.service' // Đảm bảo đường dẫn đúng
 import { getStaffDetails, getAllStaff } from '../../../services/staff.service'
 
 const VN_TIMEZONE = 'Asia/Ho_Chi_Minh'
 
-// Hàm helper để format Duration thành chuỗi H giờ M phút
-const formatDurationObj = (isoDurationString) => {
-  if (!isoDurationString) return 'N/A'
-  // TypeORM interval trả về object { hours, minutes, seconds }
-  // Hoặc có thể trả về string ISO 8601 PThhHmmMss.millisecondsS
-  // Cần xử lý cả hai trường hợp
-  if (typeof isoDurationString === 'object') {
-    const { hours = 0, minutes = 0 } = isoDurationString
-    return `${hours} giờ ${minutes} phút`
+// --- HELPER FUNCTIONS ---
+
+// Format hiển thị Duration (Hỗ trợ cả object đơn và mảng breakdown)
+const formatDurationObj = (duration) => {
+  if (!duration) return 'N/A'
+
+  // 1. Nếu là mảng breakdown (từ backend trả về)
+  if (Array.isArray(duration)) {
+    return duration.map((d) => `${d.role}: ${d.duration} (x${d.multiplier})`).join(', ')
   }
-  // Xử lý string ISO Duration (ví dụ: '01:15:00') - cần parse đúng
+
+  // 2. Nếu là object interval { hours, minutes }
+  if (typeof duration === 'object') {
+    const { hours = 0, minutes = 0 } = duration
+    // Chỉ hiển thị số > 0 cho gọn
+    const parts = []
+    if (hours > 0) parts.push(`${hours}h`)
+    if (minutes > 0) parts.push(`${minutes}p`)
+    return parts.join(' ') || '0p'
+  }
+
+  // 3. Xử lý string ISO (fallback)
   try {
-    const parts = isoDurationString.split(':')
+    const parts = duration.split(':')
     const hours = parseInt(parts[0] || '0', 10)
     const minutes = parseInt(parts[1] || '0', 10)
-    // const seconds = parseInt(parts[2] || '0', 10); // Có thể bỏ qua giây
-    return `${hours} giờ ${minutes} phút`
+
+    const displayParts = []
+    if (hours > 0) displayParts.push(`${hours}h`)
+    if (minutes > 0) displayParts.push(`${minutes}p`)
+    return displayParts.join(' ') || '0p'
   } catch (e) {
-    console.error('Error parsing duration string:', isoDurationString, e)
     return 'Lỗi định dạng'
   }
 }
 
 const formatTime = (isoString) => {
   if (!isoString) return 'N/A'
-  // Chuyển đổi từ ISO (đã bao gồm múi giờ) về múi giờ VN
   return DateTime.fromISO(isoString).setZone(VN_TIMEZONE).toFormat('HH:mm:ss')
+}
+
+// Hàm helper để tách giờ/phút từ dữ liệu gốc
+const parseDurationToNumbers = (isoDurationString) => {
+  let h = 0
+  let m = 0
+  if (!isoDurationString) return { h, m }
+
+  if (typeof isoDurationString === 'object') {
+    h = isoDurationString.hours || 0
+    m = isoDurationString.minutes || 0
+    return { h, m }
+  }
+
+  try {
+    if (typeof isoDurationString === 'string' && isoDurationString.includes(':')) {
+      const parts = isoDurationString.split(':')
+      h = parseInt(parts[0], 10) || 0
+      m = parseInt(parts[1], 10) || 0
+    }
+  } catch (e) {}
+
+  return { h, m }
 }
 
 const OtRequestsPage = () => {
   const [requests, setRequests] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedRequest, setSelectedRequest] = useState(null)
-  const [action, setAction] = useState(null) // 'approve' or 'reject'
+  const [action, setAction] = useState(null) // 'approve', 'reject', 'edit'
   const [notes, setNotes] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const [staffRates, setStaffRates] = useState(null) // Lưu rates của nhân viên được chọn
+  // Data modal
+  const [staffRates, setStaffRates] = useState(null)
   const [loadingModalData, setLoadingModalData] = useState(false)
-  const [selectedRoleKey, setSelectedRoleKey] = useState('')
-  const [multiplier, setMultiplier] = useState(1)
-  const [staffList, setStaffList] = useState([]) // Danh sách nhân viên để chọn
+
+  // Filter
+  const [staffList, setStaffList] = useState([])
   const [filterStaffId, setFilterStaffId] = useState('')
 
-  const [manualHours, setManualHours] = useState(0)
-  const [manualMinutes, setManualMinutes] = useState(0)
+  // --- STATE MỚI CHO SPLIT OT ---
+  // Thay vì manualHours/Minutes lẻ, dùng mảng object
+  const [otItems, setOtItems] = useState([{ role: '', hours: 0, minutes: 0, multiplier: 1 }])
 
   useEffect(() => {
     const fetchStaff = async () => {
@@ -97,7 +135,8 @@ const OtRequestsPage = () => {
   const fetchPendingRequests = async () => {
     setLoading(true)
     try {
-      // Truyền filterStaffId vào service
+      // Nếu muốn xem cả approved để sửa thì có thể cần sửa tham số này hoặc tạo tab
+      // Ở đây giả sử 'pending' trả về cả pending và approved gần đây hoặc API hỗ trợ filter status
       const data = await getOtRequests('pending', filterStaffId || null)
       setRequests(data)
     } catch (error) {
@@ -111,22 +150,46 @@ const OtRequestsPage = () => {
     fetchPendingRequests()
   }, [filterStaffId])
 
+  // Tính tổng phút đang nhập trong modal để đối chiếu
+  const calculateTotalMinutes = () => {
+    return otItems.reduce((acc, item) => acc + item.hours * 60 + item.minutes, 0)
+  }
+
   const openModal = async (request, selectedAction) => {
     setSelectedRequest(request)
     setAction(selectedAction)
-    setNotes('')
-    setSelectedRoleKey('')
-    setMultiplier(1)
+    setNotes(request.notes || '')
 
-    if (selectedAction === 'approve') {
-      // Tải `rates` của nhân viên để hiển thị trong dropdown
-      const { h, m } = parseDurationToNumbers(request.detectedDuration)
-      setManualHours(h)
-      setManualMinutes(m)
+    // Reset form về mặc định
+    setOtItems([{ role: '', hours: 0, minutes: 0, multiplier: 1}])
+
+    if (selectedAction === 'approve' || selectedAction === 'edit') {
       setLoadingModalData(true)
       try {
-        const staffDetails = await getStaffDetails(request.staffId) // Cần tạo hàm này trong staff.service.js
+        // 1. Tải rates
+        const staffDetails = await getStaffDetails(request.staffId)
         setStaffRates(staffDetails.rates || {})
+
+        // 2. Fill dữ liệu vào Form
+        // Nếu request đã có breakdown (tức là đã duyệt và đang sửa lại), load breakdown đó
+        if (request.breakdown && Array.isArray(request.breakdown) && request.breakdown.length > 0) {
+          const items = request.breakdown.map((b) => {
+            const { h, m } = parseDurationToNumbers(b.duration)
+            return {
+              role: b.role,
+              hours: h,
+              minutes: m,
+              multiplier: b.multiplier || 1,
+            }
+          })
+          setOtItems(items)
+        } else {
+          // Nếu chưa có breakdown (mới detected), lấy detectedDuration làm dòng mặc định
+          const { h, m } = parseDurationToNumbers(request.detectedDuration)
+          setOtItems([
+            { role: '', hours: h, minutes: m, multiplier: 1 }, // Default multiplier
+          ])
+        }
       } catch (e) {
         toast.error('Lỗi tải chi tiết nhân viên.')
         closeModal()
@@ -141,40 +204,65 @@ const OtRequestsPage = () => {
     setAction(null)
     setNotes('')
     setStaffRates(null)
-    setSelectedRoleKey('')
-    setMultiplier(1)
+    setOtItems([{ role: '', hours: 0, minutes: 0, multiplier: 1 }])
   }
+
+  // --- CÁC HÀM QUẢN LÝ DYNAMIC LIST ---
+  const updateOtItem = (index, field, value) => {
+    const newItems = [...otItems]
+    newItems[index][field] = value
+    setOtItems(newItems)
+  }
+
+  const addOtItem = () => {
+    setOtItems([...otItems, { role: '', hours: 0, minutes: 0, multiplier: 1 }])
+  }
+
+  const removeOtItem = (index) => {
+    if (otItems.length > 1) {
+      const newItems = otItems.filter((_, i) => i !== index)
+      setOtItems(newItems)
+    }
+  }
+  // ------------------------------------
 
   const handleConfirmAction = async () => {
     if (!selectedRequest || !action) return
 
     setIsSubmitting(true)
     try {
-      // 1. Tạo payload cơ bản
       const payload = {
-        status: action === 'approve' ? 'approved' : 'rejected',
+        status: action === 'reject' ? 'rejected' : 'approved',
         notes: notes || null,
       }
 
-      // 2. Nếu là Duyệt (approve), bổ sung thêm thông tin rate
-      if (action === 'approve') {
-        if (!selectedRoleKey) {
-          toast.error('Vui lòng chọn mức thù lao áp dụng.')
+      if (action === 'approve' || action === 'edit') {
+        // Validate: Role bắt buộc cho mọi dòng
+        if (otItems.some((item) => !item.role)) {
+          toast.error('Vui lòng chọn mức thù lao (Rate) cho tất cả các dòng.')
           setIsSubmitting(false)
           return
         }
-        // --- THÊM CÁC DÒNG NÀY ---
-        payload.approvedRoleKey = selectedRoleKey
-        payload.approvedMultiplier = parseFloat(multiplier) || 1 // Mặc định là 1 nếu không nhập
-        const hStr = String(manualHours).padStart(2, '0')
-        const mStr = String(manualMinutes).padStart(2, '0')
-        payload.approvedDuration = `${hStr}:${mStr}`
+
+        // Tạo mảng breakdown gửi về server
+        const breakdown = otItems.map((item) => ({
+          role: item.role,
+          duration: `${String(item.hours).padStart(2, '0')}:${String(item.minutes).padStart(2, '0')}`,
+          multiplier: parseFloat(item.multiplier) || 1,
+        }))
+
+        payload.breakdown = breakdown
+
+        // Các trường flat (cho tương thích ngược / hiển thị đơn giản)
+        // Lấy dòng đầu tiên làm đại diện
+        payload.approvedRoleKey = breakdown[0].role
+        payload.approvedMultiplier = breakdown[0].multiplier
+        payload.approvedDuration = breakdown[0].duration
       }
 
-      // 3. Gửi payload đầy đủ đi
       await updateOtRequestStatus(selectedRequest.id, payload)
 
-      toast.success(`Đã ${action === 'approve' ? 'phê duyệt' : 'từ chối'} yêu cầu OT thành công!`)
+      toast.success(`Thao tác thành công!`)
       closeModal()
       fetchPendingRequests()
     } catch (error) {
@@ -212,7 +300,6 @@ const OtRequestsPage = () => {
     })
   }
 
-  // --- THÊM HÀM HELPER MỚI: Hiển thị giờ In/Out ---
   const formatCheckInOut = (attendances) => {
     if (!attendances || attendances.length === 0) {
       return 'N/A'
@@ -226,30 +313,27 @@ const OtRequestsPage = () => {
     return `${inTime} - ${outTime}`
   }
 
-  // Hàm helper để tách giờ/phút từ dữ liệu gốc
-  const parseDurationToNumbers = (isoDurationString) => {
-    let h = 0
-    let m = 0
-
-    if (!isoDurationString) return { h, m }
-
-    // Trường hợp 1: Object { hours: 1, minutes: 30 } (từ TypeORM Interval)
-    if (typeof isoDurationString === 'object') {
-      h = isoDurationString.hours || 0
-      m = isoDurationString.minutes || 0
-      return { h, m }
+  // Helper render chi tiết OT trong bảng
+  const renderOtDetailsInTable = (request) => {
+    // Nếu đã duyệt và có breakdown, hiển thị chi tiết
+    if (request.status === 'approved' && request.breakdown && request.breakdown.length > 0) {
+      return (
+        <div>
+          {request.breakdown.map((b, idx) => (
+            <div key={idx} style={{ fontSize: '0.85em', marginBottom: '2px' }}>
+              <CBadge color="info" shape="rounded-pill" className="me-1">
+                {b.role}
+              </CBadge>
+              {b.duration} <span className="text-muted small">(x{b.multiplier})</span>
+            </div>
+          ))}
+        </div>
+      )
     }
-
-    // Trường hợp 2: String "01:30:00" hoặc ISO
-    try {
-      if (typeof isoDurationString === 'string' && isoDurationString.includes(':')) {
-        const parts = isoDurationString.split(':')
-        h = parseInt(parts[0], 10) || 0
-        m = parseInt(parts[1], 10) || 0
-      }
-    } catch (e) {}
-
-    return { h, m }
+    // Mặc định hiện detected hoặc approved duration cũ
+    return formatDurationObj(
+      request.status === 'approved' ? request.approvedDuration : request.detectedDuration,
+    )
   }
 
   return (
@@ -279,48 +363,84 @@ const OtRequestsPage = () => {
           </CCardHeader>
           <CCardBody>
             {loading ? (
-              <CSpinner />
+              <div className="text-center">
+                <CSpinner />
+              </div>
             ) : (
-              <CTable hover responsive bordered>
+              <CTable hover responsive bordered align="middle">
                 <CTableHead>
                   <CTableRow>
                     <CTableHeaderCell>Nhân viên</CTableHeaderCell>
                     <CTableHeaderCell>Ngày</CTableHeaderCell>
                     <CTableHeaderCell>Giờ làm (In-Out)</CTableHeaderCell>
-                    <CTableHeaderCell>Lịch trình trong ngày</CTableHeaderCell>
-                    <CTableHeaderCell>Thời gian OT (Phát hiện)</CTableHeaderCell>
+                    <CTableHeaderCell>Ca phân công</CTableHeaderCell>
+                    <CTableHeaderCell>Thời gian OT</CTableHeaderCell>
                     <CTableHeaderCell>Hành động</CTableHeaderCell>
                   </CTableRow>
                 </CTableHead>
                 <CTableBody>
                   {requests.length === 0 && (
                     <CTableRow>
-                      <CTableDataCell colSpan="4" className="text-center text-muted">
-                        Không có yêu cầu OT nào đang chờ duyệt.
+                      <CTableDataCell colSpan="6" className="text-center text-muted">
+                        Không có yêu cầu OT nào.
                       </CTableDataCell>
                     </CTableRow>
                   )}
                   {requests.map((req) => (
                     <CTableRow key={req.id}>
-                      <CTableDataCell>{req.staff?.fullName || 'N/A'}</CTableDataCell>
+                      <CTableDataCell>
+                        <div className="fw-bold">{req.staff?.fullName || 'N/A'}</div>
+                        <small className="text-muted">{req.staff?.email}</small>
+                      </CTableDataCell>
                       <CTableDataCell>
                         {DateTime.fromISO(req.date).toFormat('dd/MM/yyyy')}
                       </CTableDataCell>
                       <CTableDataCell>{formatCheckInOut(req.attendances)}</CTableDataCell>
                       <CTableDataCell>{formatSchedules(req.schedules)}</CTableDataCell>
-                      <CTableDataCell>{formatDurationObj(req.detectedDuration)}</CTableDataCell>
+
+                      {/* Cột hiển thị OT chi tiết */}
+                      <CTableDataCell>{renderOtDetailsInTable(req)}</CTableDataCell>
+
                       <CTableDataCell>
-                        <CButton
-                          size="sm"
-                          color="success"
-                          className="me-2"
-                          onClick={() => openModal(req, 'approve')}
-                        >
-                          <CIcon icon={cilCheckCircle} className="me-1" /> Duyệt
-                        </CButton>
-                        <CButton size="sm" color="danger" onClick={() => openModal(req, 'reject')}>
-                          <CIcon icon={cilXCircle} className="me-1" /> Từ chối
-                        </CButton>
+                        {req.status === 'pending' ? (
+                          <>
+                            <CTooltip content="Duyệt">
+                              <CButton
+                                size="sm"
+                                color="success"
+                                className="me-2 text-white"
+                                onClick={() => openModal(req, 'approve')}
+                              >
+                                <CIcon icon={cilCheckCircle} />
+                              </CButton>
+                            </CTooltip>
+                            <CTooltip content="Từ chối">
+                              <CButton
+                                size="sm"
+                                color="danger"
+                                className="text-white"
+                                onClick={() => openModal(req, 'reject')}
+                              >
+                                <CIcon icon={cilXCircle} />
+                              </CButton>
+                            </CTooltip>
+                          </>
+                        ) : (
+                          // Nếu đã duyệt rồi, cho phép sửa lại
+                          req.status === 'approved' && (
+                            <CTooltip content="Chỉnh sửa">
+                              <CButton
+                                size="sm"
+                                color="warning"
+                                className="text-white"
+                                onClick={() => openModal(req, 'edit')}
+                              >
+                                <CIcon icon={cilPencil} />
+                              </CButton>
+                            </CTooltip>
+                          )
+                        )}
+                        {req.status === 'rejected' && <CBadge color="danger">Đã từ chối</CBadge>}
                       </CTableDataCell>
                     </CTableRow>
                   ))}
@@ -332,9 +452,11 @@ const OtRequestsPage = () => {
       </CCol>
 
       {/* Modal Xác nhận Phê duyệt/Từ chối */}
-      <CModal visible={!!selectedRequest} onClose={closeModal} alignment="center">
+      <CModal visible={!!selectedRequest} onClose={closeModal} alignment="center" size="lg">
         <CModalHeader>
-          <CModalTitle>{action === 'approve' ? 'Phê duyệt' : 'Từ chối'} Yêu cầu OT</CModalTitle>
+          <CModalTitle>
+            {action === 'reject' ? 'Từ chối OT' : 'Phê duyệt OT (Chi tiết)'}
+          </CModalTitle>
         </CModalHeader>
         <CModalBody>
           <p>
@@ -346,100 +468,132 @@ const OtRequestsPage = () => {
             </strong>
           </p>
           <hr />
-          {/* --- THÊM DỮ LIỆU MỚI VÀO MODAL --- */}
           Giờ làm thực tế: <strong>{formatCheckInOut(selectedRequest?.attendances)}</strong>
           <br />
-          Lịch trình trong ngày:
-          <div className="ps-3 mt-2 mb-2">{formatSchedules(selectedRequest?.schedules)}</div>
-          Thời gian OT phát hiện:{' '}
-          <strong>{formatDurationObj(selectedRequest?.detectedDuration)}</strong>
-          <hr />
-          <p>
-            Bạn có chắc chắn muốn <strong>{action === 'approve' ? 'phê duyệt' : 'từ chối'}</strong>{' '}
-            yêu cầu này không?
-          </p>
-          {action === 'approve' &&
+          OT Hệ thống phát hiện:{' '}
+          <strong className="text-primary">
+            {formatDurationObj(selectedRequest?.detectedDuration)}
+          </strong>
+          {(action === 'approve' || action === 'edit') &&
             (loadingModalData ? (
-              <CSpinner />
+              <div className="text-center py-3">
+                <CSpinner />
+              </div>
             ) : (
-              <>
-                <hr />
-                <div className="mb-3">
-                  <CFormLabel htmlFor="approvedDuration">Thời gian Duyệt (Amount)</CFormLabel>
-                  <CRow>
-                    <CCol xs={6}>
-                      <CInputGroup>
-                        <CFormInput
-                          type="number"
-                          min="0"
-                          value={manualHours}
-                          onChange={(e) =>
-                            setManualHours(Math.max(0, parseInt(e.target.value) || 0))
-                          }
-                        />
-                        <CInputGroupText>Giờ</CInputGroupText>
-                      </CInputGroup>
-                    </CCol>
-                    <CCol xs={6}>
-                      <CInputGroup>
-                        <CFormInput
-                          type="number"
-                          min="0"
-                          max="59"
-                          value={manualMinutes}
-                          onChange={(e) =>
-                            setManualMinutes(
-                              Math.max(0, Math.min(59, parseInt(e.target.value) || 0)),
-                            )
-                          }
-                        />
-                        <CInputGroupText>Phút</CInputGroupText>
-                      </CInputGroup>
-                    </CCol>
-                  </CRow>
-                  <div className="form-text mt-1">
-                    Nhập tổng thời gian OT được tính lương (Ví dụ: 0 Giờ 30 Phút).
+              <div className="bg-light p-3 rounded border mt-3">
+                <div className="d-flex justify-content-between align-items-center mb-2">
+                  <CFormLabel className="fw-bold text-primary mb-0">
+                    Chi tiết Duyệt (Split OT)
+                  </CFormLabel>
+                  <small className="text-dark fw-bold">
+                    Tổng: {Math.floor(calculateTotalMinutes() / 60)}h {calculateTotalMinutes() % 60}
+                    p
+                  </small>
+                </div>
+
+                {/* --- DANH SÁCH DÒNG OT --- */}
+                {otItems.map((item, index) => (
+                  <div key={index} className="p-2 mb-2 bg-white border rounded shadow-sm">
+                    <div className="d-flex justify-content-between mb-1">
+                      <small className="fw-bold text-muted">Phần #{index + 1}</small>
+                      {otItems.length > 1 && (
+                        <CButton
+                          color="danger"
+                          size="sm"
+                          variant="ghost"
+                          className="py-0"
+                          onClick={() => removeOtItem(index)}
+                        >
+                          <CIcon icon={cilTrash} size="sm" />
+                        </CButton>
+                      )}
+                    </div>
+
+                    <CRow className="g-2">
+                      {/* Cột 1: Chọn Rate */}
+                      <CCol md={5}>
+                        <CFormSelect
+                          size="sm"
+                          value={item.role}
+                          onChange={(e) => updateOtItem(index, 'role', e.target.value)}
+                        >
+                          <option value="">-- Chọn Rate --</option>
+                          {staffRates &&
+                            Object.entries(staffRates).map(([key, rate]) => (
+                              <option key={key} value={key}>
+                                {key} ({parseInt(rate).toLocaleString('vi-VN')} đ)
+                              </option>
+                            ))}
+                        </CFormSelect>
+                      </CCol>
+
+                      {/* Cột 2: Thời gian */}
+                      <CCol md={4}>
+                        <CInputGroup size="sm">
+                          <CFormInput
+                            type="number"
+                            min="0"
+                            placeholder="Giờ"
+                            value={item.hours}
+                            onChange={(e) =>
+                              updateOtItem(
+                                index,
+                                'hours',
+                                Math.max(0, parseInt(e.target.value) || 0),
+                              )
+                            }
+                          />
+                          <CInputGroupText className="px-1">:</CInputGroupText>
+                          <CFormInput
+                            type="number"
+                            min="0"
+                            max="59"
+                            placeholder="Phút"
+                            value={item.minutes}
+                            onChange={(e) =>
+                              updateOtItem(
+                                index,
+                                'minutes',
+                                Math.max(0, Math.min(59, parseInt(e.target.value) || 0)),
+                              )
+                            }
+                          />
+                        </CInputGroup>
+                      </CCol>
+
+                      {/* Cột 3: Hệ số */}
+                      <CCol md={3}>
+                        <CInputGroup size="sm">
+                          <CInputGroupText className="px-1">x</CInputGroupText>
+                          <CFormInput
+                            type="number"
+                            step="0.1"
+                            placeholder="Hệ số"
+                            value={item.multiplier}
+                            onChange={(e) => updateOtItem(index, 'multiplier', e.target.value)}
+                          />
+                        </CInputGroup>
+                      </CCol>
+                    </CRow>
                   </div>
-                </div>
-                <div className="mb-3">
-                  <CFormLabel htmlFor="approvedRoleKey">Áp dụng Mức thù lao</CFormLabel>
-                  <CFormSelect
-                    id="approvedRoleKey"
-                    value={selectedRoleKey}
-                    onChange={(e) => setSelectedRoleKey(e.target.value)}
-                    required
-                  >
-                    <option value="">-- Chọn Rate Cơ sở --</option>
-                    {/* Lặp qua các key của object rates */}
-                    {staffRates && Object.keys(staffRates).length > 0 ? (
-                      Object.entries(staffRates).map(([key, rate]) => (
-                        <option key={key} value={key}>
-                          {key} ({parseInt(rate).toLocaleString('vi-VN')} VNĐ/giờ)
-                        </option>
-                      ))
-                    ) : (
-                      <option disabled>Nhân viên này không có rate.</option>
-                    )}
-                  </CFormSelect>
-                </div>
-                <div className="mb-3">
-                  <CFormLabel htmlFor="multiplier">Hệ số nhân (Mặc định: 1)</CFormLabel>
-                  <CFormInput
-                    id="multiplier"
-                    type="number"
-                    step="0.1"
-                    min="1"
-                    value={multiplier}
-                    onChange={(e) => setMultiplier(e.target.value)}
-                  />
-                </div>
-              </>
+                ))}
+
+                <CButton
+                  color="primary"
+                  variant="outline"
+                  size="sm"
+                  className="w-100 mt-2"
+                  onClick={addOtItem}
+                >
+                  <CIcon icon={cilPlus} className="me-1" /> Thêm phần OT khác
+                </CButton>
+              </div>
             ))}
           <div className="mt-3">
             <CFormLabel htmlFor="notes">Ghi chú (tùy chọn)</CFormLabel>
             <CFormTextarea
               id="notes"
-              rows={3}
+              rows={2}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               disabled={isSubmitting}
@@ -451,16 +605,17 @@ const OtRequestsPage = () => {
             Hủy
           </CButton>
           <CButton
-            color={action === 'approve' ? 'success' : 'danger'}
+            color={action === 'reject' ? 'danger' : 'success'}
             onClick={handleConfirmAction}
             disabled={isSubmitting}
+            className="text-white"
           >
             {isSubmitting ? (
               <CSpinner size="sm" />
-            ) : action === 'approve' ? (
-              'Xác nhận Duyệt'
-            ) : (
+            ) : action === 'reject' ? (
               'Xác nhận Từ chối'
+            ) : (
+              'Xác nhận Duyệt'
             )}
           </CButton>
         </CModalFooter>
